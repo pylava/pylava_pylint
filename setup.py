@@ -11,7 +11,7 @@ pylama_pylint -- Pylint integration to pylama library.
 
 from os import path as op
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 from pylama_pylint import __version__, __project__, __license__
 from sys import version_info
@@ -48,7 +48,7 @@ setup(
             'pylint = pylama_pylint.main:Linter',
         ],
     },
-    py_modules=['pylama_pylint'],
+    packages=find_packages(),
     install_requires = [
         l for l in read('requirements.txt').split('\n')
         if l and not l.startswith('#')],
