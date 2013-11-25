@@ -49,6 +49,7 @@ setup(
         ],
     },
     packages=find_packages(),
+    package_data={'pylama_pylint': ['pylint.rc']},
     install_requires = [
         l for l in read('requirements.txt').split('\n')
         if l and not l.startswith('#')],
