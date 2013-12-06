@@ -13,7 +13,6 @@ from os import path as op
 
 from setuptools import setup, find_packages
 
-from pylama_pylint import __version__, __project__, __license__
 from sys import version_info
 
 
@@ -27,9 +26,9 @@ if version_info >= (3, 0):
     raise NotImplementedError("Pylint doesnt support python3.")
 
 setup(
-    name=__project__,
-    version=__version__,
-    license=__license__,
+    name='pylama_pylint',
+    version='0.1.3',
+    license='BSD',
     description=read('DESCRIPTION'),
     long_description=read('README.rst'),
     platforms=('Any'),
@@ -57,3 +56,4 @@ setup(
 )
 
 # lint_ignore=F0401
+
