@@ -27,7 +27,7 @@ if version_info >= (3, 0):
 
 setup(
     name='pylama_pylint',
-    version='0.1.3',
+    version='0.1.4',
     license='BSD',
     description=read('DESCRIPTION'),
     long_description=read('README.rst'),
@@ -49,11 +49,10 @@ setup(
     },
     packages=find_packages(),
     package_data={'pylama_pylint': ['pylint.rc']},
-    install_requires = [
+    install_requires=[
         l for l in read('requirements.txt').split('\n')
         if l and not l.startswith('#')],
-    test_suite = 'tests',
+    test_suite='tests',
 )
 
 # lint_ignore=F0401
-
