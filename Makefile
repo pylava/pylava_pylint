@@ -84,6 +84,7 @@ pylint: $(CURDIR)/astroid $(CURDIR)/logilab-common $(CURDIR)/pylint
 	@cp -f $(CURDIR)/astroid/scoped_nodes.py $(CURDIR)/pylama_pylint/astroid/.
 	@cp -f $(CURDIR)/astroid/utils.py $(CURDIR)/pylama_pylint/astroid/.
 	@cp -rf $(CURDIR)/astroid/brain $(CURDIR)/pylama_pylint/astroid/.
+	@touch $(CURDIR)/pylama_pylint/astroid/brain/__init__.py
 	@mkdir -p $(CURDIR)/pylama_pylint/logilab/common
 	@touch $(CURDIR)/pylama_pylint/logilab/__init__.py
 	@cp -f $(CURDIR)/logilab-common/__init__.py $(CURDIR)/pylama_pylint/logilab/common/.

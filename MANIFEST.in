@@ -4,6 +4,7 @@ include README.rst
 include requirements.txt
 
 recursive-include pylama_pylint *
+recursive-include pylama_pylint/astroid/brain *.py
 
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
