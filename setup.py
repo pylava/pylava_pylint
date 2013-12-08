@@ -48,7 +48,8 @@ setup(
         ],
     },
     packages=find_packages(),
-    package_data={'pylama_pylint': ['pylint.rc']},
+    package_data={'pylama_pylint': ['pylint.rc',
+                                    'astroid/brain/py2stdlib.py']},
     install_requires=[
         l for l in read('requirements.txt').split('\n')
         if l and not l.startswith('#')],

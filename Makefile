@@ -54,8 +54,17 @@ doc: docs
 pep8:
 	find $(MODULE) -name "*.py" | xargs -n 1 autopep8 -i
 
+$(CURDIR)/astroid:
+	hg clone ssh://hg@bitbucket.org/logilab/astroid
+
+$(CURDIR)/logilab-common:
+	hg clone ssh://hg@bitbucket.org/logilab/logilab-common
+
+$(CURDIR)/pylint:
+	hg clone ssh://hg@bitbucket.org/logilab/pylint
+
 .PHONY: pylint
-pylint: astroid logilab-common
+pylint: $(CURDIR)/astroid $(CURDIR)/logilab-common $(CURDIR)/pylint
 	@rm -rf $(CURDIR)/pylama_pylint/astroid $(CURDIR)/pylama_pylint/pylint $(CURDIR)/pylama_pylint/logilab
 	@mkdir -p $(CURDIR)/pylama_pylint/astroid
 	@cp -f $(CURDIR)/astroid/__init__.py $(CURDIR)/pylama_pylint/astroid/.
