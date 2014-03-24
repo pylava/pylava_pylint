@@ -32,7 +32,7 @@ from logilab.common.decorators import cached
 from astroid.exceptions import NotFoundError, \
      AstroidBuildingException, InferenceError
 from astroid.node_classes import Const, DelName, DelAttr, \
-     Dict, From, List, Pass, Raise, Return, Tuple, Yield, \
+     Dict, From, List, Pass, Raise, Return, Tuple, Yield, YieldFrom, \
      LookupMixIn, const_factory as cf, unpack_infer
 from astroid.bases import NodeNG, InferenceContext, Instance,\
      YES, Generator, UnboundMethod, BoundMethod, _infer_stmts, copy_context, \
@@ -620,7 +620,8 @@ class Function(Statement, Lambda):
         """return true if this is a generator function"""
         # XXX should be flagged, not computed
         try:
-            return self.nodes_of_class(Yield, skip_klass=(Function, Lambda)).next()
+            return self.nodes_of_class((Yield, YieldFrom),
+                                       skip_klass=(Function, Lambda)).next()
         except StopIteration:
             return False
 
@@ -990,3 +991,25 @@ class Class(Statement, LocalsDictNodeNG, FilterStmtsMixin):
                 yield iface
         if missing:
             raise InferenceError()
+
+    _metaclass = None
+    def metaclass(self):
+        """ Return the metaclass of this class """
+        if self._metaclass:
+            # Expects this from Py3k TreeRebuilder
+            try:
+                return next(self._metaclass.infer())
+            except InferenceError:
+                return 
+
+        try:
+            meta = self.getattr('__metaclass__')[0]
+        except NotFoundError:
+            return
+        try:
+            infered = meta.infer().next()
+        except InferenceError:
+            return
+        if infered is YES: # don't expose this
+            return None
+        return infered

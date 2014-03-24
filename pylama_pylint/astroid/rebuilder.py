@@ -21,7 +21,7 @@ order to get a single Astroid representation
 
 import sys
 from warnings import warn
-from _ast import (Expr as Discard, Str,
+from _ast import (Expr as Discard, Str, Name, Attribute,
     # binary operators
     Add, Div, FloorDiv,  Mod, Mult, Pow, Sub, BitAnd, BitOr, BitXor,
     LShift, RShift,
@@ -87,6 +87,8 @@ REDIRECT = {'arguments': 'Arguments',
             'keyword': 'Keyword',
             'Repr': 'Backquote',
             }
+PY3K = sys.version_info >= (3, 0)
+PY34 = sys.version_info >= (3, 4)
 
 def _init_set_doc(node, newnode):
     newnode.doc = None
@@ -114,7 +116,19 @@ def _set_infos(oldnode, newnode, parent):
         newnode.col_offset = oldnode.col_offset
     newnode.set_line_info(newnode.last_child()) # set_line_info accepts None
 
+def _infer_metaclass(node):
+    if isinstance(node, Name):
+        return node.id
+    elif isinstance(node, Attribute):
+        return node.attr
 
+def _create_yield_node(node, parent, rebuilder, factory):
+    newnode = factory()
+    _lineno_parent(node, newnode, parent)
+    if node.value is not None:
+        newnode.value = rebuilder.visit(node.value, newnode)
+    newnode.set_line_info(newnode.last_child())
+    return newnode
 
 
 class TreeRebuilder(object):
@@ -128,25 +142,7 @@ class TreeRebuilder(object):
         self._from_nodes = []
         self._delayed_assattr = []
         self._visit_meths = {}
-
-    def _transform(self, node):
-        try:
-            transforms = self._manager.transforms[type(node)]
-        except KeyError:
-            return node # no transform registered for this class of node
-        orig_node = node # copy the reference
-        for transform_func, predicate in transforms:
-            if predicate is None or predicate(node):
-                ret = transform_func(node)
-                # if the transformation function returns something, it's
-                # expected to be a replacement for the node
-                if ret is not None:
-                    if node is not orig_node:
-                        # node has already be modified by some previous
-                        # transformation, warn about it
-                        warn('node %s substitued multiple times' % node)
-                    node = ret
-        return node
+        self._transform = manager.transform
 
     def visit_module(self, node, modname, package):
         """visit a Module node by returning a fresh instance of it"""
@@ -187,13 +183,20 @@ class TreeRebuilder(object):
         newnode.defaults = [self.visit(child, newnode) for child in node.defaults]
         newnode.kwonlyargs = []
         newnode.kw_defaults = []
-        newnode.vararg = node.vararg
-        newnode.kwarg = node.kwarg
+        vararg, kwarg = node.vararg, node.kwarg
+        # change added in 82732 (7c5c678e4164), vararg and kwarg
+        # are instances of `_ast.arg`, not strings
+        if vararg and PY34:
+            vararg = vararg.arg
+        if kwarg and PY34:
+            kwarg = kwarg.arg
+        newnode.vararg = vararg
+        newnode.kwarg = kwarg
         # save argument names in locals:
-        if node.vararg:
-            newnode.parent.set_local(newnode.vararg, newnode)
-        if node.kwarg:
-            newnode.parent.set_local(newnode.kwarg, newnode)
+        if vararg:
+            newnode.parent.set_local(vararg, newnode)
+        if kwarg:
+            newnode.parent.set_local(kwarg, newnode)
         newnode.set_line_info(newnode.last_child())
         return newnode
 
@@ -245,7 +248,7 @@ class TreeRebuilder(object):
                     continue
         elif getattr(newnode.targets[0], 'name', None) == '__metaclass__':
             # XXX check more...
-            self._metaclass[-1] = 'type' # XXX get the actual metaclass
+            self._metaclass[-1] = _infer_metaclass(node.value)
         newnode.set_line_info(newnode.last_child())
         return newnode
 
@@ -328,10 +331,13 @@ class TreeRebuilder(object):
             newnode.decorators = self.visit_decorators(node, newnode)
         newnode.set_line_info(newnode.last_child())
         metaclass = self._metaclass.pop()
-        if not newnode.bases:
-            # no base classes, detect new / style old style according to
-            # current scope
-            newnode._newstyle = metaclass == 'type'
+        if PY3K:
+            newnode._newstyle = True
+        else:
+            if not newnode.bases:
+                # no base classes, detect new / style old style according to
+                # current scope
+                newnode._newstyle = metaclass in ('type', 'ABCMeta')
         newnode.parent.frame().set_local(newnode.name, newnode)
         return newnode
 
@@ -821,13 +827,7 @@ class TreeRebuilder(object):
 
     def visit_yield(self, node, parent):
         """visit a Yield node by returning a fresh instance of it"""
-        newnode = new.Yield()
-        _lineno_parent(node, newnode, parent)
-        if node.value is not None:
-            newnode.value = self.visit(node.value, newnode)
-        newnode.set_line_info(newnode.last_child())
-        return newnode
-
+        return _create_yield_node(node, parent, self, new.Yield)
 
 class TreeRebuilder3k(TreeRebuilder):
     """extend and overwrite TreeRebuilder for python3k"""
@@ -837,6 +837,12 @@ class TreeRebuilder3k(TreeRebuilder):
         # the <arg> node is coming from py>=3.0, but we use AssName in py2.x
         # XXX or we should instead introduce a Arg node in astroid ?
         return self.visit_assname(node, parent, node.arg)
+
+    def visit_nameconstant(self, node, parent):
+        # in Python 3.4 we have NameConstant for True / False / None
+        newnode = new.Const(node.value)
+        _set_infos(node, newnode, parent)
+        return newnode
 
     def visit_arguments(self, node, parent):
         newnode = super(TreeRebuilder3k, self).visit_arguments(node, parent)
@@ -932,7 +938,15 @@ class TreeRebuilder3k(TreeRebuilder):
         return newnode
 
     def visit_yieldfrom(self, node, parent):
-        return self.visit_yield(node, parent)
+        return _create_yield_node(node, parent, self, new.YieldFrom)
+
+    def visit_class(self, node, parent):
+        newnode = super(TreeRebuilder3k, self).visit_class(node, parent)
+        for keyword in node.keywords:
+            if keyword.arg == 'metaclass':
+                newnode._metaclass = self.visit(keyword, newnode).value
+                break
+        return newnode
 
 if sys.version_info >= (3, 0):
     TreeRebuilder = TreeRebuilder3k

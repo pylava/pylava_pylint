@@ -144,7 +144,17 @@ class AsStringVisitor(object):
         """return an astroid.Class node as string"""
         decorate = node.decorators and node.decorators.accept(self)  or ''
         bases =  ', '.join([n.accept(self) for n in node.bases])
-        bases = bases and '(%s)' % bases or ''
+        if sys.version_info[0] == 2:
+            bases = bases and '(%s)' % bases or ''
+        else:
+            metaclass = node.metaclass()
+            if metaclass:
+                if bases:
+                    bases = '(%s, metaclass=%s)' % (bases, metaclass.name)
+                else:
+                    bases = '(metaclass=%s)' % metaclass.name
+            else:
+                bases = bases and '(%s)' % bases or ''
         docs = node.doc and '\n%s"""%s"""' % (INDENT, node.doc) or ''
         return '\n\n%sclass %s%s:%s\n%s\n' % (decorate, node.name, bases, docs,
                                             self._stmt_list( node.body))
@@ -389,6 +399,8 @@ class AsStringVisitor(object):
 
     def visit_tuple(self, node):
         """return an astroid.Tuple node as string"""
+        if len(node.elts) == 1:
+            return '(%s, )' % node.elts[0].accept(self) 
         return '(%s)' % ', '.join([child.accept(self) for child in node.elts])
 
     def visit_unaryop(self, node):
@@ -454,6 +466,15 @@ class AsStringVisitor3k(AsStringVisitor):
     def visit_starred(self, node):
         """return Starred node as string"""
         return "*" + node.value.accept(self)
+
+    def visit_yieldfrom(self, node):
+        """ Return an astroid.YieldFrom node as string. """
+        yi_val = node.value and (" " + node.value.accept(self)) or ""
+        expr = 'yield from' + yi_val
+        if node.parent.is_statement:
+            return expr
+        else:
+            return "(%s)" % (expr,)
 
 
 def _import_string(names):
