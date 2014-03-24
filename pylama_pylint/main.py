@@ -1,11 +1,7 @@
 """ Pylint support. """
 from os import path as op, environ
 
-from pylama.lint import Linter as BaseLinter # noqa
-
-from astroid import MANAGER  # noqa
-from pylint.lint import Run  # noqa
-from pylint.reporters import BaseReporter  # noqa
+from pylama.lint import Linter as BaseLinter
 
 
 PYLINT_RC = op.abspath(op.join(op.dirname(__file__), 'pylint.rc'))
@@ -22,6 +18,9 @@ class Linter(BaseLinter):
         :return list: List of errors.
 
         """
+        from astroid import MANAGER
+        from pylint.lint import Run
+        from pylint.reporters import BaseReporter
 
         MANAGER.astroid_cache.clear()
 

@@ -16,7 +16,7 @@ from setuptools import setup, find_packages
 from sys import version_info
 
 
-def read(fname):
+def __read(fname):
     try:
         return open(op.join(op.dirname(__file__), fname)).read()
     except IOError:
@@ -27,10 +27,10 @@ if version_info >= (3, 0):
 
 setup(
     name='pylama_pylint',
-    version='0.1.4',
+    version='0.1.6',
     license='BSD',
-    description=read('DESCRIPTION'),
-    long_description=read('README.rst'),
+    description=__read('DESCRIPTION'),
+    long_description=__read('README.rst'),
     platforms=('Any'),
 
     author='horneds',
@@ -50,7 +50,7 @@ setup(
     packages=find_packages(),
     package_data={'pylama_pylint': ['pylint.rc']},
     install_requires=[
-        l for l in read('requirements.txt').split('\n')
+        l for l in __read('requirements.txt').split('\n')
         if l and not l.startswith('#')],
     test_suite='tests',
 )
