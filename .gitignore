@@ -1,4 +1,3 @@
-/astroid
-/logilab-common
-/pylint
-dist
+/libs
+/todo.txt
+/dist
