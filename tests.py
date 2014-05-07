@@ -11,6 +11,6 @@ class Pylama_pylintTests(TestCase):
         from pylama.core import run
         from pylama.config import parse_options
 
-        options = parse_options(linters='pylint')
+        options = parse_options(linters=['pylint'], config=False)
         errors = run('pylama_pylint/pylint/utils.py', options=options)
-        self.assertEqual(len(errors), 27)
+        self.assertEqual(len(errors), 32)

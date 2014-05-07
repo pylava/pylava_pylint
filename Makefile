@@ -54,60 +54,63 @@ doc: docs
 pep8:
 	find $(MODULE) -name "*.py" | xargs -n 1 autopep8 -i
 
-$(CURDIR)/astroid:
-	hg clone ssh://hg@bitbucket.org/logilab/astroid
+$(CURDIR)/libs/astroid:
+	@mkdir -p libs
+	@hg clone ssh://hg@bitbucket.org/logilab/astroid libs/astroid
 
-$(CURDIR)/logilab-common:
-	hg clone ssh://hg@bitbucket.org/logilab/logilab-common
+$(CURDIR)/libs/logilab-common:
+	@mkdir -p libs
+	@hg clone ssh://hg@bitbucket.org/logilab/logilab-common libs/logilab-common
 
-$(CURDIR)/pylint:
-	hg clone ssh://hg@bitbucket.org/logilab/pylint
+$(CURDIR)/libs/pylint:
+	@mkdir -p libs
+	@hg clone ssh://hg@bitbucket.org/logilab/pylint libs/pylint
 
-.PHONY: pylint
-pylint: $(CURDIR)/astroid $(CURDIR)/logilab-common $(CURDIR)/pylint
+.PHONY: libs
+libs: $(CURDIR)/libs/astroid $(CURDIR)/libs/logilab-common $(CURDIR)/libs/pylint
 	@rm -rf $(CURDIR)/pylama_pylint/astroid $(CURDIR)/pylama_pylint/pylint $(CURDIR)/pylama_pylint/logilab
 	@mkdir -p $(CURDIR)/pylama_pylint/astroid
-	@cp -f $(CURDIR)/astroid/__init__.py $(CURDIR)/pylama_pylint/astroid/.
-	@cp -f $(CURDIR)/astroid/__pkginfo__.py $(CURDIR)/pylama_pylint/astroid/.
-	@cp -f $(CURDIR)/astroid/as_string.py $(CURDIR)/pylama_pylint/astroid/.
-	@cp -f $(CURDIR)/astroid/bases.py $(CURDIR)/pylama_pylint/astroid/.
-	@cp -f $(CURDIR)/astroid/builder.py $(CURDIR)/pylama_pylint/astroid/.
-	@cp -f $(CURDIR)/astroid/exceptions.py $(CURDIR)/pylama_pylint/astroid/.
-	@cp -f $(CURDIR)/astroid/inference.py $(CURDIR)/pylama_pylint/astroid/.
-	@cp -f $(CURDIR)/astroid/manager.py $(CURDIR)/pylama_pylint/astroid/.
-	@cp -f $(CURDIR)/astroid/mixins.py $(CURDIR)/pylama_pylint/astroid/.
-	@cp -f $(CURDIR)/astroid/node_classes.py $(CURDIR)/pylama_pylint/astroid/.
-	@cp -f $(CURDIR)/astroid/nodes.py $(CURDIR)/pylama_pylint/astroid/.
-	@cp -f $(CURDIR)/astroid/protocols.py $(CURDIR)/pylama_pylint/astroid/.
-	@cp -f $(CURDIR)/astroid/raw_building.py $(CURDIR)/pylama_pylint/astroid/.
-	@cp -f $(CURDIR)/astroid/rebuilder.py $(CURDIR)/pylama_pylint/astroid/.
-	@cp -f $(CURDIR)/astroid/scoped_nodes.py $(CURDIR)/pylama_pylint/astroid/.
-	@cp -f $(CURDIR)/astroid/utils.py $(CURDIR)/pylama_pylint/astroid/.
-	@cp -rf $(CURDIR)/astroid/brain $(CURDIR)/pylama_pylint/astroid/.
+	@cp -f $(CURDIR)/libs/astroid/__init__.py $(CURDIR)/pylama_pylint/astroid/.
+	@cp -f $(CURDIR)/libs/astroid/__pkginfo__.py $(CURDIR)/pylama_pylint/astroid/.
+	@cp -f $(CURDIR)/libs/astroid/as_string.py $(CURDIR)/pylama_pylint/astroid/.
+	@cp -f $(CURDIR)/libs/astroid/bases.py $(CURDIR)/pylama_pylint/astroid/.
+	@cp -f $(CURDIR)/libs/astroid/builder.py $(CURDIR)/pylama_pylint/astroid/.
+	@cp -f $(CURDIR)/libs/astroid/exceptions.py $(CURDIR)/pylama_pylint/astroid/.
+	@cp -f $(CURDIR)/libs/astroid/inference.py $(CURDIR)/pylama_pylint/astroid/.
+	@cp -f $(CURDIR)/libs/astroid/manager.py $(CURDIR)/pylama_pylint/astroid/.
+	@cp -f $(CURDIR)/libs/astroid/mixins.py $(CURDIR)/pylama_pylint/astroid/.
+	@cp -f $(CURDIR)/libs/astroid/node_classes.py $(CURDIR)/pylama_pylint/astroid/.
+	@cp -f $(CURDIR)/libs/astroid/nodes.py $(CURDIR)/pylama_pylint/astroid/.
+	@cp -f $(CURDIR)/libs/astroid/protocols.py $(CURDIR)/pylama_pylint/astroid/.
+	@cp -f $(CURDIR)/libs/astroid/raw_building.py $(CURDIR)/pylama_pylint/astroid/.
+	@cp -f $(CURDIR)/libs/astroid/rebuilder.py $(CURDIR)/pylama_pylint/astroid/.
+	@cp -f $(CURDIR)/libs/astroid/scoped_nodes.py $(CURDIR)/pylama_pylint/astroid/.
+	@cp -f $(CURDIR)/libs/astroid/utils.py $(CURDIR)/pylama_pylint/astroid/.
+	@cp -rf $(CURDIR)/libs/astroid/brain $(CURDIR)/pylama_pylint/astroid/.
 	@mkdir -p $(CURDIR)/pylama_pylint/logilab/common
 	@touch $(CURDIR)/pylama_pylint/logilab/__init__.py
-	@cp -f $(CURDIR)/logilab-common/__init__.py $(CURDIR)/pylama_pylint/logilab/common/.
-	@cp -f $(CURDIR)/logilab-common/__init__.py $(CURDIR)/pylama_pylint/logilab/common/.
-	@cp -f $(CURDIR)/logilab-common/__pkginfo__.py $(CURDIR)/pylama_pylint/logilab/common/.
-	@cp -f $(CURDIR)/logilab-common/changelog.py $(CURDIR)/pylama_pylint/logilab/common/.
-	@cp -f $(CURDIR)/logilab-common/compat.py $(CURDIR)/pylama_pylint/logilab/common/.
-	@cp -f $(CURDIR)/logilab-common/configuration.py $(CURDIR)/pylama_pylint/logilab/common/.
-	@cp -f $(CURDIR)/logilab-common/decorators.py $(CURDIR)/pylama_pylint/logilab/common/.
-	@cp -f $(CURDIR)/logilab-common/deprecation.py $(CURDIR)/pylama_pylint/logilab/common/.
-	@cp -f $(CURDIR)/logilab-common/graph.py $(CURDIR)/pylama_pylint/logilab/common/.
-	@cp -f $(CURDIR)/logilab-common/interface.py $(CURDIR)/pylama_pylint/logilab/common/
-	@cp -f $(CURDIR)/logilab-common/modutils.py $(CURDIR)/pylama_pylint/logilab/common/.
-	@cp -f $(CURDIR)/logilab-common/optik_ext.py $(CURDIR)/pylama_pylint/logilab/common/.
-	@cp -f $(CURDIR)/logilab-common/textutils.py $(CURDIR)/pylama_pylint/logilab/common/.
-	@cp -f $(CURDIR)/logilab-common/tree.py $(CURDIR)/pylama_pylint/logilab/common/.
-	@cp -rf $(CURDIR)/logilab-common/ureports $(CURDIR)/pylama_pylint/logilab/common/.
-	@cp -f $(CURDIR)/logilab-common/visitor.py $(CURDIR)/pylama_pylint/logilab/common/.
+	@cp -f $(CURDIR)/libs/logilab-common/__init__.py $(CURDIR)/pylama_pylint/logilab/common/.
+	@cp -f $(CURDIR)/libs/logilab-common/__init__.py $(CURDIR)/pylama_pylint/logilab/common/.
+	@cp -f $(CURDIR)/libs/logilab-common/__pkginfo__.py $(CURDIR)/pylama_pylint/logilab/common/.
+	@cp -f $(CURDIR)/libs/logilab-common/changelog.py $(CURDIR)/pylama_pylint/logilab/common/.
+	@cp -f $(CURDIR)/libs/logilab-common/compat.py $(CURDIR)/pylama_pylint/logilab/common/.
+	@cp -f $(CURDIR)/libs/logilab-common/configuration.py $(CURDIR)/pylama_pylint/logilab/common/.
+	@cp -f $(CURDIR)/libs/logilab-common/decorators.py $(CURDIR)/pylama_pylint/logilab/common/.
+	@cp -f $(CURDIR)/libs/logilab-common/deprecation.py $(CURDIR)/pylama_pylint/logilab/common/.
+	@cp -f $(CURDIR)/libs/logilab-common/graph.py $(CURDIR)/pylama_pylint/logilab/common/.
+	@cp -f $(CURDIR)/libs/logilab-common/interface.py $(CURDIR)/pylama_pylint/logilab/common/
+	@cp -f $(CURDIR)/libs/logilab-common/modutils.py $(CURDIR)/pylama_pylint/logilab/common/.
+	@cp -f $(CURDIR)/libs/logilab-common/optik_ext.py $(CURDIR)/pylama_pylint/logilab/common/.
+	@cp -f $(CURDIR)/libs/logilab-common/textutils.py $(CURDIR)/pylama_pylint/logilab/common/.
+	@cp -f $(CURDIR)/libs/logilab-common/tree.py $(CURDIR)/pylama_pylint/logilab/common/.
+	@cp -rf $(CURDIR)/libs/logilab-common/ureports $(CURDIR)/pylama_pylint/logilab/common/.
+	@cp -f $(CURDIR)/libs/logilab-common/visitor.py $(CURDIR)/pylama_pylint/logilab/common/.
 	@mkdir -p $(CURDIR)/pylama_pylint/pylint
-	@cp -f $(CURDIR)/pylint/__init__.py $(CURDIR)/pylama_pylint/pylint/.
-	@cp -f $(CURDIR)/pylint/__pkginfo__.py $(CURDIR)/pylama_pylint/pylint/.
-	@cp -rf $(CURDIR)/pylint/checkers $(CURDIR)/pylama_pylint/pylint/.
-	@cp -f $(CURDIR)/pylint/config.py $(CURDIR)/pylama_pylint/pylint/.
-	@cp -f $(CURDIR)/pylint/interfaces.py $(CURDIR)/pylama_pylint/pylint/.
-	@cp -f $(CURDIR)/pylint/lint.py $(CURDIR)/pylama_pylint/pylint/.
-	@cp -rf $(CURDIR)/pylint/reporters $(CURDIR)/pylama_pylint/pylint/.
-	@cp -f $(CURDIR)/pylint/utils.py $(CURDIR)/pylama_pylint/pylint/.
+	@cp -f $(CURDIR)/libs/pylint/__init__.py $(CURDIR)/pylama_pylint/pylint/.
+	@cp -f $(CURDIR)/libs/pylint/__pkginfo__.py $(CURDIR)/pylama_pylint/pylint/.
+	@cp -rf $(CURDIR)/libs/pylint/checkers $(CURDIR)/pylama_pylint/pylint/.
+	@cp -f $(CURDIR)/libs/pylint/config.py $(CURDIR)/pylama_pylint/pylint/.
+	@cp -f $(CURDIR)/libs/pylint/interfaces.py $(CURDIR)/pylama_pylint/pylint/.
+	@cp -f $(CURDIR)/libs/pylint/lint.py $(CURDIR)/pylama_pylint/pylint/.
+	@cp -rf $(CURDIR)/libs/pylint/reporters $(CURDIR)/pylama_pylint/pylint/.
+	@cp -f $(CURDIR)/libs/pylint/utils.py $(CURDIR)/pylama_pylint/pylint/.
