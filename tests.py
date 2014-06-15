@@ -19,7 +19,7 @@ def test_pylint():
     assert len(errors) == 19
     assert errors[0].number == 'C0330'
 
-    options.linters_params['pylint']['max_line_length'] = 200
+    options.linters_params['pylint']['max-line_length'] = 200
     errors = run('pylama_pylint/pylint/utils.py', options=options)
     assert len(errors) == 3
 

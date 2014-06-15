@@ -1,6 +1,7 @@
 """ Pylint support. """
 from os import path as op, environ
 import sys
+import logging
 
 from pylama.lint import Linter as BaseLinter
 
@@ -15,17 +16,22 @@ HOME_RCFILE = op.abspath(op.join(environ.get('HOME', ''), '.pylintrc'))
 LAMA_RCFILE = op.abspath(op.join(CURDIR, 'pylint.rc'))
 
 
+logger = logging.getLogger('pylama')
+
+
 class Linter(BaseLinter):
 
     """ Check code with pylint. """
 
     @staticmethod
-    def run(path, code, **params):
+    def run(path, code, params=None, ignore=None, select=None, **meta):
         """ Pylint code checking.
 
         :return list: List of errors.
 
         """
+        logging.debug('Start pylint')
+
         MANAGER.astroid_cache.clear()
 
         class Reporter(BaseReporter):
@@ -46,7 +52,9 @@ class Linter(BaseLinter):
                     type=msg_id[0]
                 ))
 
-        params = _Params(**params)
+        params = _Params(ignore=ignore, select=select, params=params)
+        logging.debug(params)
+
         runner = Run(
             [path] + params.to_attrs(), reporter=Reporter(), exit=False)
 
@@ -57,8 +65,12 @@ class _Params(object):
 
     """ Store pylint params. """
 
-    def __init__(self, rcfile=LAMA_RCFILE, select=None, ignore=None,
-                 report=False, enable=None, disable=None, **params):
+    def __init__(self, select=None, ignore=None, params=None):
+
+        params = dict(params.items())
+        rcfile = params.get('rcfile', LAMA_RCFILE)
+        enable = params.get('enable', None)
+        disable = params.get('disable', None)
 
         if op.exists(HOME_RCFILE):
             rcfile = HOME_RCFILE
@@ -69,11 +81,13 @@ class _Params(object):
         if ignore:
             disable = ignore | set(disable.split(",") if disable else [])
 
+        params.update(dict(
+            report=params.get('report', False), rcfile=rcfile,
+            enable=enable, disable=disable))
+
         self.params = dict(
             (name.replace('_', '-'), self.prepare_value(value))
-            for name, value in dict(
-                rcfile=rcfile, report=report, enable=enable, disable=disable,
-                **params).items() if value is not None)
+            for name, value in params.items() if value is not None)
 
     @staticmethod
     def prepare_value(value):
