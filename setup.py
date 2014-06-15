@@ -9,9 +9,11 @@ pylama_pylint -- Pylint integration to pylama library.
 
 """
 import re
+import sys
 from os import path as op
 
 from setuptools import setup, find_packages
+from setuptools.command.test import test as TestCommand
 
 
 def _read(fname):
@@ -28,6 +30,22 @@ _version = re.search(r'^__version__\s*=\s*"(.*)"', _meta, re.M).group(1)
 from sys import version_info
 if version_info >= (3, 0):
     raise NotImplementedError("Pylint doesnt support python3.")
+
+
+class __PyTest(TestCommand):
+
+    test_args = []
+    test_suite = True
+
+    def finalize_options(self):
+        TestCommand.finalize_options(self)
+        self.test_args = ['tests.py']
+        self.test_suite = True
+
+    def run_tests(self):
+        import pytest
+        errno = pytest.main(self.test_args)
+        sys.exit(errno)
 
 setup(
     name=_project,
@@ -57,5 +75,6 @@ setup(
     install_requires=[
         l for l in _read('requirements.txt').split('\n')
         if l and not l.startswith('#')],
-    test_suite='tests',
+    tests_require=['pytest'],
+    cmdclass={'test': __PyTest},
 )
