@@ -30,7 +30,7 @@ class Linter(BaseLinter):
         :return list: List of errors.
 
         """
-        logging.debug('Start pylint')
+        logger.debug('Start pylint')
 
         MANAGER.astroid_cache.clear()
 
@@ -53,7 +53,7 @@ class Linter(BaseLinter):
                 ))
 
         params = _Params(ignore=ignore, select=select, params=params)
-        logging.debug(params)
+        logger.debug(params)
 
         runner = Run(
             [path] + params.to_attrs(), reporter=Reporter(), exit=False)
