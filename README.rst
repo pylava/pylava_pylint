@@ -26,6 +26,11 @@ Installation
 
 Usage
 =====
+::
+
+    pylama -l pylint,pep8
+
+See pylama docs for configure pylint with pylama.
 
 
 Bug tracker
