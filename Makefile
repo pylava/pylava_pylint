@@ -76,8 +76,10 @@ libs: $(CURDIR)/libs/astroid $(CURDIR)/libs/logilab-common $(CURDIR)/libs/pylint
 	@cp -f $(CURDIR)/libs/astroid/builder.py $(CURDIR)/pylama_pylint/astroid/.
 	@cp -f $(CURDIR)/libs/astroid/exceptions.py $(CURDIR)/pylama_pylint/astroid/.
 	@cp -f $(CURDIR)/libs/astroid/inference.py $(CURDIR)/pylama_pylint/astroid/.
+	@cp -f $(CURDIR)/libs/astroid/inspector.py $(CURDIR)/pylama_pylint/astroid/.
 	@cp -f $(CURDIR)/libs/astroid/manager.py $(CURDIR)/pylama_pylint/astroid/.
 	@cp -f $(CURDIR)/libs/astroid/mixins.py $(CURDIR)/pylama_pylint/astroid/.
+	@cp -f $(CURDIR)/libs/astroid/modutils.py $(CURDIR)/pylama_pylint/astroid/.
 	@cp -f $(CURDIR)/libs/astroid/node_classes.py $(CURDIR)/pylama_pylint/astroid/.
 	@cp -f $(CURDIR)/libs/astroid/nodes.py $(CURDIR)/pylama_pylint/astroid/.
 	@cp -f $(CURDIR)/libs/astroid/protocols.py $(CURDIR)/pylama_pylint/astroid/.
@@ -88,7 +90,6 @@ libs: $(CURDIR)/libs/astroid $(CURDIR)/libs/logilab-common $(CURDIR)/libs/pylint
 	@cp -rf $(CURDIR)/libs/astroid/brain $(CURDIR)/pylama_pylint/astroid/.
 	@mkdir -p $(CURDIR)/pylama_pylint/logilab/common
 	@touch $(CURDIR)/pylama_pylint/logilab/__init__.py
-	@cp -f $(CURDIR)/libs/logilab-common/__init__.py $(CURDIR)/pylama_pylint/logilab/common/.
 	@cp -f $(CURDIR)/libs/logilab-common/__init__.py $(CURDIR)/pylama_pylint/logilab/common/.
 	@cp -f $(CURDIR)/libs/logilab-common/__pkginfo__.py $(CURDIR)/pylama_pylint/logilab/common/.
 	@cp -f $(CURDIR)/libs/logilab-common/changelog.py $(CURDIR)/pylama_pylint/logilab/common/.

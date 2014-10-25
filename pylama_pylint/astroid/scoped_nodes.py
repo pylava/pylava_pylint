@@ -37,13 +37,16 @@ from astroid.exceptions import NotFoundError, \
      AstroidBuildingException, InferenceError
 from astroid.node_classes import Const, DelName, DelAttr, \
      Dict, From, List, Pass, Raise, Return, Tuple, Yield, YieldFrom, \
-     LookupMixIn, const_factory as cf, unpack_infer, Name
+     LookupMixIn, const_factory as cf, unpack_infer, Name, CallFunc
 from astroid.bases import NodeNG, InferenceContext, Instance,\
      YES, Generator, UnboundMethod, BoundMethod, _infer_stmts, copy_context, \
      BUILTINS
 from astroid.mixins import FilterStmtsMixin
 from astroid.bases import Statement
 from astroid.manager import AstroidManager
+
+ITER_METHODS = ('__iter__', '__getitem__')
+PY3K = sys.version_info >= (3, 0)
 
 
 def remove_nodes(func, cls):
@@ -476,7 +479,49 @@ else:
         """class representing a ListComp node"""
 
 # Function  ###################################################################
-    
+
+def _infer_decorator_callchain(node):
+    """ Detect decorator call chaining and see if the
+    end result is a static or a classmethod.
+    """
+    current = node
+    while True:
+        if isinstance(current, CallFunc):
+            try:
+                current = current.func.infer().next()
+            except InferenceError:
+                return
+        elif isinstance(current, Function):
+            if not current.parent:
+                return
+            try:
+                # TODO: We don't handle multiple inference results right now,
+                #       because there's no flow to reason when the return
+                #       is what we are looking for, a static or a class method.
+                result = current.infer_call_result(current.parent).next()
+            except (StopIteration, InferenceError):
+                return
+            if isinstance(result, (Function, CallFunc)):
+                current = result
+            else:
+                if isinstance(result, Instance):
+                    result = result._proxied
+                if isinstance(result, Class):
+                    if (result.name == 'classmethod' and
+                            result.root().name == BUILTINS):
+                        return 'classmethod'
+                    elif (result.name == 'staticmethod' and
+                          result.root().name == BUILTINS):
+                        return 'staticmethod'
+                    else:
+                        return
+                else:
+                    # We aren't interested in anything else returned,
+                    # so go back to the function type inference.
+                    return
+        else:
+            return
+
 def _function_type(self):
     """
     Function type, possible values are:
@@ -487,6 +532,12 @@ def _function_type(self):
     # so do it here.
     if self.decorators:
         for node in self.decorators.nodes:
+            if isinstance(node, CallFunc):
+                _type = _infer_decorator_callchain(node)
+                if _type is None:
+                    continue
+                else:
+                    return _type
             if not isinstance(node, Name):
                 continue
             try:
@@ -496,7 +547,7 @@ def _function_type(self):
                     for ancestor in infered.ancestors():
                         if isinstance(ancestor, Class):
                             if (ancestor.name == 'classmethod' and
-                                ancestor.root().name == BUILTINS):
+                                    ancestor.root().name == BUILTINS):
                                 return 'classmethod'
                             elif (ancestor.name == 'staticmethod' and
                                   ancestor.root().name == BUILTINS):
@@ -560,7 +611,11 @@ class Lambda(LocalsDictNodeNG, FilterStmtsMixin):
 
 
 class Function(Statement, Lambda):
-    _astroid_fields = ('decorators', 'args', 'body')
+    if PY3K:
+        _astroid_fields = ('decorators', 'args', 'body', 'returns')
+        returns = None
+    else:
+        _astroid_fields = ('decorators', 'args', 'body')
 
     special_attributes = set(('__name__', '__doc__', '__dict__'))
     is_function = True
@@ -633,7 +688,7 @@ class Function(Statement, Lambda):
 
     def is_abstract(self, pass_is_abstract=True):
         """Returns True if the method is abstract.
-        
+
         A method is considered abstract if
          - the only statement is 'raise NotImplementedError', or
          - the only statement is 'pass' and pass_is_abstract is True, or
@@ -701,15 +756,21 @@ def _rec_get_names(args, names=None):
 # Class ######################################################################
 
 
-def _is_metaclass(klass):
+def _is_metaclass(klass, seen=None):
     """ Return if the given class can be
     used as a metaclass.
     """
     if klass.name == 'type':
         return True
+    if seen is None:
+        seen = set()
     for base in klass.bases:
         try:
             for baseobj in base.infer():
+                if baseobj in seen:
+                    continue
+                else:
+                    seen.add(baseobj)
                 if isinstance(baseobj, Instance):
                     # not abstract
                     return False
@@ -721,7 +782,7 @@ def _is_metaclass(klass):
                     continue
                 if baseobj._type == 'metaclass':
                     return True
-                if _is_metaclass(baseobj):
+                if _is_metaclass(baseobj, seen):
                     return True
         except InferenceError:
             continue
@@ -753,12 +814,12 @@ def _class_type(klass, ancestors=None):
         for base in klass.ancestors(recurs=False):
             name = _class_type(base, ancestors)
             if name != 'class':
-                 if name == 'metaclass' and not _is_metaclass(klass):
-                     # don't propagate it if the current class
-                     # can't be a metaclass
-                     continue
-                 klass._type = base.type
-                 break
+                if name == 'metaclass' and not _is_metaclass(klass):
+                    # don't propagate it if the current class
+                    # can't be a metaclass
+                    continue
+                klass._type = base.type
+                break
     if klass._type is None:
         klass._type = 'class'
     return klass._type
@@ -805,6 +866,11 @@ class Class(Statement, LocalsDictNodeNG, FilterStmtsMixin):
             if base._newstyle_impl(context):
                 self._newstyle = True
                 break
+        klass = self._explicit_metaclass()
+        # could be any callable, we'd need to infer the result of klass(name,
+        # bases, dict).  punt if it's not a class node.
+        if klass is not None and isinstance(klass, Class):
+            self._newstyle = klass._newstyle_impl(context)
         if self._newstyle is None:
             self._newstyle = False
         return self._newstyle
@@ -839,9 +905,36 @@ class Class(Statement, LocalsDictNodeNG, FilterStmtsMixin):
     def callable(self):
         return True
 
+    def _is_subtype_of(self, type_name):
+        if self.qname() == type_name:
+            return True
+        for anc in self.ancestors():
+            if anc.qname() == type_name:
+                return True
+
     def infer_call_result(self, caller, context=None):
         """infer what a class is returning when called"""
-        yield Instance(self)
+        if self._is_subtype_of('%s.type' % (BUILTINS,)) and len(caller.args) == 3:
+            name_node = caller.args[0].infer().next()
+            if isinstance(name_node, Const) and isinstance(name_node.value, basestring):
+                name = name_node.value
+            else:
+                yield YES
+                return
+            result = Class(name, None)
+            bases = caller.args[1].infer().next()
+            if isinstance(bases, (Tuple, List)):
+                result.bases = bases.itered()
+            else:
+                # There is currently no AST node that can represent an 'unknown'
+                # node (YES is not an AST node), therefore we simply return YES here
+                # although we know at least the name of the class.
+                yield YES
+                return
+            result.parent = caller.parent
+            yield result
+        else:
+            yield Instance(self)
 
     def scope_lookup(self, node, name, offset=0):
         if node in self.bases:
@@ -941,7 +1034,9 @@ class Class(Statement, LocalsDictNodeNG, FilterStmtsMixin):
           if no attribute with this name has been find in this class or
           its parent classes
         """
-        values = self.instance_attrs.get(name, [])
+        # Return a copy, so we don't modify self.instance_attrs,
+        # which could lead to infinite loop.
+        values = list(self.instance_attrs.get(name, []))
         # get all values from parents
         for class_node in self.instance_attr_ancestors(name, context):
             values += class_node.instance_attrs[name]
@@ -1079,8 +1174,9 @@ class Class(Statement, LocalsDictNodeNG, FilterStmtsMixin):
 
         An explicit defined metaclass is defined
         either by passing the ``metaclass`` keyword argument
-        in the class definition line (Python 3) or by
-        having a ``__metaclass__`` class attribute.
+        in the class definition line (Python 3) or (Python 2) by
+        having a ``__metaclass__`` class attribute, or if there are
+        no explicit bases but there is a global ``__metaclass__`` variable.
         """
         if self._metaclass:
             # Expects this from Py3k TreeRebuilder
@@ -1088,14 +1184,25 @@ class Class(Statement, LocalsDictNodeNG, FilterStmtsMixin):
                 return next(node for node in self._metaclass.infer()
                             if node is not YES)
             except (InferenceError, StopIteration):
-                return 
+                return None
+        if sys.version_info >= (3, ):
+            return None
+
+        if '__metaclass__' in self.locals:
+            assignment = self.locals['__metaclass__'][-1]
+        elif self.bases:
+            return None
+        elif '__metaclass__' in self.root().locals:
+            assignments = [ass for ass in self.root().locals['__metaclass__']
+                           if ass.lineno < self.lineno]
+            if not assignments:
+                return None
+            assignment = assignments[-1]
+        else:
+            return None
 
         try:
-            meta = self.getattr('__metaclass__')[0]
-        except NotFoundError:
-            return
-        try:
-            infered = meta.infer().next()
+            infered = assignment.infer().next()
         except InferenceError:
             return
         if infered is YES: # don't expose this
@@ -1116,3 +1223,55 @@ class Class(Statement, LocalsDictNodeNG, FilterStmtsMixin):
                 if klass is not None:
                     break
         return klass
+
+    def _islots(self):
+        """ Return an iterator with the inferred slots. """
+        if '__slots__' not in self.locals:
+            return
+        for slots in self.igetattr('__slots__'):
+            # check if __slots__ is a valid type
+            for meth in ITER_METHODS:
+                try:
+                    slots.getattr(meth)
+                    break
+                except NotFoundError:
+                    continue
+            else:
+                continue
+
+            if isinstance(slots, Const):
+                # a string. Ignore the following checks,
+                # but yield the node, only if it has a value
+                if slots.value:
+                    yield slots
+                continue
+            if not hasattr(slots, 'itered'):
+                # we can't obtain the values, maybe a .deque?
+                continue
+
+            if isinstance(slots, Dict):
+                values = [item[0] for item in slots.items]
+            else:
+                values = slots.itered()
+            if values is YES:
+                continue
+
+            for elt in values:
+                try:
+                    for infered in elt.infer():
+                        if infered is YES:
+                            continue
+                        if (not isinstance(infered, Const) or
+                                not isinstance(infered.value, str)):
+                            continue
+                        if not infered.value:
+                            continue
+                        yield infered
+                except InferenceError:
+                    continue
+
+    # Cached, because inferring them all the time is expensive
+    @cached
+    def slots(self):
+        """ Return all the slots for this node. """
+        return list(self._islots())

@@ -20,8 +20,8 @@ order to get a single Astroid representation
 """
 
 import sys
-from warnings import warn
-from _ast import (Expr as Discard, Str, Name, Attribute,
+from _ast import (
+    Expr as Discard, Str,
     # binary operators
     Add, Div, FloorDiv,  Mod, Mult, Pow, Sub, BitAnd, BitOr, BitXor,
     LShift, RShift,
@@ -47,15 +47,18 @@ _BIN_OP_CLASSES = {Add: '+',
                    Pow: '**',
                    Sub: '-',
                    LShift: '<<',
-                   RShift: '>>'}
+                   RShift: '>>',
+                  }
 
 _BOOL_OP_CLASSES = {And: 'and',
-                    Or: 'or'}
+                    Or: 'or',
+                   }
 
 _UNARY_OP_CLASSES = {UAdd: '+',
                      USub: '-',
                      Not: 'not',
-                     Invert: '~'}
+                     Invert: '~',
+                    }
 
 _CMP_OP_CLASSES = {Eq: '==',
                    Gt: '>',
@@ -66,11 +69,13 @@ _CMP_OP_CLASSES = {Eq: '==',
                    Lt: '<',
                    LtE: '<=',
                    NotEq: '!=',
-                   NotIn: 'not in'}
+                   NotIn: 'not in',
+                  }
 
 CONST_NAME_TRANSFORMS = {'None':  None,
                          'True':  True,
-                         'False': False}
+                         'False': False,
+                        }
 
 REDIRECT = {'arguments': 'Arguments',
             'Attribute': 'Getattr',
@@ -86,7 +91,7 @@ REDIRECT = {'arguments': 'Arguments',
             'ImportFrom': 'From',
             'keyword': 'Keyword',
             'Repr': 'Backquote',
-            }
+           }
 PY3K = sys.version_info >= (3, 0)
 PY34 = sys.version_info >= (3, 4)
 
@@ -116,12 +121,6 @@ def _set_infos(oldnode, newnode, parent):
         newnode.col_offset = oldnode.col_offset
     newnode.set_line_info(newnode.last_child()) # set_line_info accepts None
 
-def _infer_metaclass(node):
-    if isinstance(node, Name):
-        return node.id
-    elif isinstance(node, Attribute):
-        return node.attr
-
 def _create_yield_node(node, parent, rebuilder, factory):
     newnode = factory()
     _lineno_parent(node, newnode, parent)
@@ -137,7 +136,6 @@ class TreeRebuilder(object):
     def __init__(self, manager):
         self._manager = manager
         self.asscontext = None
-        self._metaclass = ['']
         self._global_names = []
         self._from_nodes = []
         self._delayed_assattr = []
@@ -186,10 +184,25 @@ class TreeRebuilder(object):
         vararg, kwarg = node.vararg, node.kwarg
         # change added in 82732 (7c5c678e4164), vararg and kwarg
         # are instances of `_ast.arg`, not strings
-        if vararg and PY34:
-            vararg = vararg.arg
-        if kwarg and PY34:
-            kwarg = kwarg.arg
+        if vararg:
+            if PY34:
+                if vararg.annotation:
+                    newnode.varargannotation = self.visit(vararg.annotation,
+                                                          newnode)
+                vararg = vararg.arg
+            elif PY3K and node.varargannotation:
+                newnode.varargannotation = self.visit(node.varargannotation,
+                                                      newnode)
+        if kwarg:
+            if PY34:
+                if kwarg.annotation:
+                    newnode.kwargannotation = self.visit(kwarg.annotation,
+                                                         newnode)
+                kwarg = kwarg.arg
+            elif PY3K:
+                if node.kwargannotation:
+                    newnode.kwargannotation = self.visit(node.kwargannotation,
+                                                         newnode)
         newnode.vararg = vararg
         newnode.kwarg = kwarg
         # save argument names in locals:
@@ -232,8 +245,8 @@ class TreeRebuilder(object):
         # set some function or metaclass infos  XXX explain ?
         klass = newnode.parent.frame()
         if (isinstance(klass, new.Class)
-            and isinstance(newnode.value, new.CallFunc)
-            and isinstance(newnode.value.func, new.Name)):
+                and isinstance(newnode.value, new.CallFunc)
+                and isinstance(newnode.value.func, new.Name)):
             func_name = newnode.value.func.name
             for ass_node in newnode.targets:
                 try:
@@ -246,9 +259,6 @@ class TreeRebuilder(object):
                         meth.extra_decorators.append(newnode.value)
                 except (AttributeError, KeyError):
                     continue
-        elif getattr(newnode.targets[0], 'name', None) == '__metaclass__':
-            # XXX check more...
-            self._metaclass[-1] = _infer_metaclass(node.value)
         newnode.set_line_info(newnode.last_child())
         return newnode
 
@@ -321,7 +331,6 @@ class TreeRebuilder(object):
 
     def visit_class(self, node, parent):
         """visit a Class node to become astroid"""
-        self._metaclass.append(self._metaclass[-1])
         newnode = new.Class(node.name, None)
         _lineno_parent(node, newnode, parent)
         _init_set_doc(node, newnode)
@@ -330,14 +339,6 @@ class TreeRebuilder(object):
         if 'decorator_list' in node._fields and node.decorator_list:# py >= 2.6
             newnode.decorators = self.visit_decorators(node, newnode)
         newnode.set_line_info(newnode.last_child())
-        metaclass = self._metaclass.pop()
-        if PY3K:
-            newnode._newstyle = True
-        else:
-            if not newnode.bases:
-                # no base classes, detect new / style old style according to
-                # current scope
-                newnode._newstyle = metaclass in ('type', 'ABCMeta')
         newnode.parent.frame().set_local(newnode.name, newnode)
         return newnode
 
@@ -359,7 +360,7 @@ class TreeRebuilder(object):
         _lineno_parent(node, newnode, parent)
         newnode.left = self.visit(node.left, newnode)
         newnode.ops = [(_CMP_OP_CLASSES[op.__class__], self.visit(expr, newnode))
-                    for (op, expr) in zip(node.ops, node.comparators)]
+                       for (op, expr) in zip(node.ops, node.comparators)]
         newnode.set_line_info(newnode.last_child())
         return newnode
 
@@ -384,7 +385,7 @@ class TreeRebuilder(object):
         if 'decorators' in node._fields: # py < 2.6, i.e. 2.5
             decorators = node.decorators
         else:
-            decorators= node.decorator_list
+            decorators = node.decorator_list
         newnode.nodes = [self.visit(child, newnode) for child in decorators]
         newnode.set_line_info(newnode.last_child())
         return newnode
@@ -404,7 +405,7 @@ class TreeRebuilder(object):
         newnode = new.Dict()
         _lineno_parent(node, newnode, parent)
         newnode.items = [(self.visit(key, newnode), self.visit(value, newnode))
-                          for key, value in zip(node.keys, node.values)]
+                         for key, value in zip(node.keys, node.values)]
         newnode.set_line_info(newnode.last_child())
         return newnode
 
@@ -511,6 +512,8 @@ class TreeRebuilder(object):
         decorators = getattr(node, attr)
         if decorators:
             newnode.decorators = self.visit_decorators(node, newnode)
+        if PY3K and node.returns:
+            newnode.returns = self.visit(node.returns, newnode)
         newnode.set_line_info(newnode.last_child())
         self._global_names.pop()
         frame = newnode.parent.frame()
@@ -850,6 +853,9 @@ class TreeRebuilder3k(TreeRebuilder):
         newnode.kwonlyargs = [self.visit(child, newnode) for child in node.kwonlyargs]
         self.asscontext = None
         newnode.kw_defaults = [self.visit(child, newnode) if child else None for child in node.kw_defaults]
+        newnode.annotations = [
+            self.visit(arg.annotation, newnode) if arg.annotation else None
+            for arg in node.args]
         return newnode
 
     def visit_excepthandler(self, node, parent):
@@ -942,6 +948,7 @@ class TreeRebuilder3k(TreeRebuilder):
 
     def visit_class(self, node, parent):
         newnode = super(TreeRebuilder3k, self).visit_class(node, parent)
+        newnode._newstyle = True
         for keyword in node.keywords:
             if keyword.arg == 'metaclass':
                 newnode._metaclass = self.visit(keyword, newnode).value

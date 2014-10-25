@@ -27,29 +27,29 @@
 """
 
 # import this first to avoid builtin namespace pollution
-from pylint.checkers import utils
+from pylint.checkers import utils #pylint: disable=unused-import
 
-import functools
 import sys
 import os
 import tokenize
+from operator import attrgetter
 from warnings import warn
 
 from logilab.common.configuration import UnsupportedAction, OptionsManagerMixIn
 from logilab.common.optik_ext import check_csv
-from logilab.common.modutils import load_module_from_name, get_module_part
 from logilab.common.interface import implements
 from logilab.common.textutils import splitstrip, unquote
 from logilab.common.ureports import Table, Text, Section
 from logilab.common.__pkginfo__ import version as common_version
 
-from astroid import MANAGER, nodes, AstroidBuildingException
+from astroid import MANAGER, AstroidBuildingException
 from astroid.__pkginfo__ import version as astroid_version
+from astroid.modutils import load_module_from_name, get_module_part
 
 from pylint.utils import (
     MSG_TYPES, OPTION_RGX,
     PyLintASTWalker, UnknownMessage, MessagesHandlerMixIn, ReportsHandlerMixIn,
-    EmptyReport, WarningScope,
+    MessagesStore, FileState, EmptyReport,
     expand_modules, tokenize_module)
 from pylint.interfaces import IRawChecker, ITokenChecker, IAstroidChecker
 from pylint.checkers import (BaseTokenChecker,
@@ -64,7 +64,7 @@ from pylint.__pkginfo__ import version
 
 def _get_python_path(filepath):
     dirname = os.path.dirname(os.path.realpath(
-            os.path.expanduser(filepath)))
+        os.path.expanduser(filepath)))
     while True:
         if not os.path.exists(os.path.join(dirname, "__init__.py")):
             return dirname
@@ -93,7 +93,7 @@ MSGS = {
     'F0010': ('error while code parsing: %s',
               'parse-error',
               'Used when an exception occured while building the Astroid '
-               'representation which could be handled by astroid.'),
+              'representation which could be handled by astroid.'),
 
     'I0001': ('Unable to run raw checkers on built-in module %s',
               'raw-checker-failed',
@@ -130,7 +130,7 @@ MSGS = {
               'deprecated-pragma',
               'Some inline pylint options have been renamed or reworked, '
               'only the most recent form should be used. '
-              'NOTE:skip-all is only available with pylint >= 0.26', 
+              'NOTE:skip-all is only available with pylint >= 0.26',
               {'old_names': [('I0014', 'deprecated-disable-all')]}),
 
     'E0001': ('%s',
@@ -182,7 +182,7 @@ class PyLinter(OptionsManagerMixIn, MessagesHandlerMixIn, ReportsHandlerMixIn,
                  {'type' : 'csv', 'metavar' : '<file>[,<file>...]',
                   'dest' : 'black_list', 'default' : ('CVS',),
                   'help' : 'Add files or directories to the blacklist. '
-                  'They should be base names, not paths.'}),
+                           'They should be base names, not paths.'}),
                 ('persistent',
                  {'default': True, 'type' : 'yn', 'metavar' : '<y_or_n>',
                   'level': 1,
@@ -192,85 +192,86 @@ class PyLinter(OptionsManagerMixIn, MessagesHandlerMixIn, ReportsHandlerMixIn,
                  {'type' : 'csv', 'metavar' : '<modules>', 'default' : (),
                   'level': 1,
                   'help' : 'List of plugins (as comma separated values of '
-                  'python modules names) to load, usually to register '
-                  'additional checkers.'}),
+                           'python modules names) to load, usually to register '
+                           'additional checkers.'}),
 
                 ('output-format',
                  {'default': 'text', 'type': 'string', 'metavar' : '<format>',
                   'short': 'f',
                   'group': 'Reports',
                   'help' : 'Set the output format. Available formats are text,'
-                  ' parseable, colorized, msvs (visual studio) and html. You '
-                  'can also give a reporter class, eg mypackage.mymodule.'
-                  'MyReporterClass.'}),
+                           ' parseable, colorized, msvs (visual studio) and html. You '
+                           'can also give a reporter class, eg mypackage.mymodule.'
+                           'MyReporterClass.'}),
 
                 ('files-output',
                  {'default': 0, 'type' : 'yn', 'metavar' : '<y_or_n>',
                   'group': 'Reports', 'level': 1,
                   'help' : 'Put messages in a separate file for each module / '
-                  'package specified on the command line instead of printing '
-                  'them on stdout. Reports (if any) will be written in a file '
-                  'name "pylint_global.[txt|html]".'}),
+                           'package specified on the command line instead of printing '
+                           'them on stdout. Reports (if any) will be written in a file '
+                           'name "pylint_global.[txt|html]".'}),
 
                 ('reports',
                  {'default': 1, 'type' : 'yn', 'metavar' : '<y_or_n>',
                   'short': 'r',
                   'group': 'Reports',
                   'help' : 'Tells whether to display a full report or only the '
-                  'messages'}),
+                           'messages'}),
 
                 ('evaluation',
                  {'type' : 'string', 'metavar' : '<python_expression>',
                   'group': 'Reports', 'level': 1,
                   'default': '10.0 - ((float(5 * error + warning + refactor + '
-                  'convention) / statement) * 10)',
-                  'help' : 'Python expression which should return a note less \
-than 10 (10 is the highest note). You have access to the variables errors \
-warning, statement which respectively contain the number of errors / warnings\
- messages and the total number of statements analyzed. This is used by the \
- global evaluation report (RP0004).'}),
+                             'convention) / statement) * 10)',
+                  'help' : 'Python expression which should return a note less '
+                           'than 10 (10 is the highest note). You have access '
+                           'to the variables errors warning, statement which '
+                           'respectively contain the number of errors / '
+                           'warnings messages and the total number of '
+                           'statements analyzed. This is used by the global '
+                           'evaluation report (RP0004).'}),
 
                 ('comment',
                  {'default': 0, 'type' : 'yn', 'metavar' : '<y_or_n>',
                   'group': 'Reports', 'level': 1,
                   'help' : 'Add a comment according to your evaluation note. '
-                  'This is used by the global evaluation report (RP0004).'}),
+                           'This is used by the global evaluation report (RP0004).'}),
 
                 ('enable',
                  {'type' : 'csv', 'metavar': '<msg ids>',
                   'short': 'e',
                   'group': 'Messages control',
                   'help' : 'Enable the message, report, category or checker with the '
-                  'given id(s). You can either give multiple identifier '
-                  'separated by comma (,) or put this option multiple time. '
-                  'See also the "--disable" option for examples. '}),
+                           'given id(s). You can either give multiple identifier '
+                           'separated by comma (,) or put this option multiple time. '
+                           'See also the "--disable" option for examples. '}),
 
                 ('disable',
                  {'type' : 'csv', 'metavar': '<msg ids>',
                   'short': 'd',
                   'group': 'Messages control',
                   'help' : 'Disable the message, report, category or checker '
-                  'with the given id(s). You can either give multiple identifiers'
-                  ' separated by comma (,) or put this option multiple times '
-                  '(only on the command line, not in the configuration file '
-                  'where it should appear only once).'
-                  'You can also use "--disable=all" to disable everything first '
-                  'and then reenable specific checks. For example, if you want '
-                  'to run only the similarities checker, you can use '
-                  '"--disable=all --enable=similarities". '
-                  'If you want to run only the classes checker, but have no '
-                  'Warning level messages displayed, use'
-                  '"--disable=all --enable=classes --disable=W"'}),
+                           'with the given id(s). You can either give multiple identifiers'
+                           ' separated by comma (,) or put this option multiple times '
+                           '(only on the command line, not in the configuration file '
+                           'where it should appear only once).'
+                           'You can also use "--disable=all" to disable everything first '
+                           'and then reenable specific checks. For example, if you want '
+                           'to run only the similarities checker, you can use '
+                           '"--disable=all --enable=similarities". '
+                           'If you want to run only the classes checker, but have no '
+                           'Warning level messages displayed, use'
+                           '"--disable=all --enable=classes --disable=W"'}),
 
                 ('msg-template',
                  {'type' : 'string', 'metavar': '<template>',
-                 #'short': 't',
                   'group': 'Reports',
                   'help' : ('Template used to display messages. '
                             'This is a python new-style format string '
                             'used to format the message information. '
                             'See doc for all details')
-                  }),
+                 }),
 
                 ('include-ids', _deprecated_option('i', 'yn')),
                 ('symbols', _deprecated_option('s', 'yn')),
@@ -285,15 +286,15 @@ warning, statement which respectively contain the number of errors / warnings\
                  pylintrc=None):
         # some stuff has to be done before ancestors initialization...
         #
-        # checkers / reporter / astroid manager
+        # messages store / checkers / reporter / astroid manager
+        self.msgs_store = MessagesStore()
         self.reporter = None
         self._reporter_name = None
         self._reporters = {}
         self._checkers = {}
         self._ignore_file = False
         # visit variables
-        self.base_name = None
-        self.base_file = None
+        self.file_state = FileState()
         self.current_name = None
         self.current_file = None
         self.stats = None
@@ -322,7 +323,7 @@ warning, statement which respectively contain the number of errors / warnings\
                          report_messages_stats),
                         ('RP0004', 'Global evaluation',
                          self.report_evaluation),
-                        )
+                       )
         self.register_checker(self)
         self._dynamic_plugins = set()
         self.load_provider_defaults()
@@ -422,11 +423,11 @@ warning, statement which respectively contain the number of errors / warnings\
             self.register_report(r_id, r_title, r_cb, checker)
         self.register_options_provider(checker)
         if hasattr(checker, 'msgs'):
-            self.register_messages(checker)
+            self.msgs_store.register_messages(checker)
         checker.load_defaults()
 
     def disable_noerror_messages(self):
-        for msgcat, msgids in self._msgs_by_category.iteritems():
+        for msgcat, msgids in self.msgs_store._msgs_by_category.iteritems():
             if msgcat == 'E':
                 for msgid in msgids:
                     self.enable(msgid)
@@ -496,59 +497,6 @@ warning, statement which respectively contain the number of errors / warnings\
             else:
                 self.add_message('unrecognized-inline-option', args=opt, line=start[0])
 
-    def collect_block_lines(self, node, msg_state):
-        """walk ast to collect block level options line numbers"""
-        # recurse on children (depth first)
-        for child in node.get_children():
-            self.collect_block_lines(child, msg_state)
-        first = node.fromlineno
-        last = node.tolineno
-        # first child line number used to distinguish between disable
-        # which are the first child of scoped node with those defined later.
-        # For instance in the code below:
-        #
-        # 1.   def meth8(self):
-        # 2.        """test late disabling"""
-        # 3.        # pylint: disable=E1102
-        # 4.        print self.blip
-        # 5.        # pylint: disable=E1101
-        # 6.        print self.bla
-        #
-        # E1102 should be disabled from line 1 to 6 while E1101 from line 5 to 6
-        #
-        # this is necessary to disable locally messages applying to class /
-        # function using their fromlineno
-        if isinstance(node, (nodes.Module, nodes.Class, nodes.Function)) and node.body:
-            firstchildlineno = node.body[0].fromlineno
-        else:
-            firstchildlineno = last
-        for msgid, lines in msg_state.iteritems():
-            for lineno, state in lines.items():
-                original_lineno = lineno
-                if first <= lineno <= last:
-                    # Set state for all lines for this block, if the
-                    # warning is applied to nodes.
-                    if self.check_message_id(msgid).scope == WarningScope.NODE:
-                        if lineno > firstchildlineno:
-                            state = True
-                        first_, last_ = node.block_range(lineno)
-                    else:
-                        first_ = lineno
-                        last_ = last
-                    for line in xrange(first_, last_+1):
-                        # do not override existing entries
-                        if not line in self._module_msgs_state.get(msgid, ()):
-                            if line in lines: # state change in the same block
-                                state = lines[line]
-                                original_lineno = line
-                            if not state:
-                                self._suppression_mapping[(msgid, line)] = original_lineno
-                            try:
-                                self._module_msgs_state[msgid][line] = state
-                            except KeyError:
-                                self._module_msgs_state[msgid] = {line: state}
-                    del lines[lineno]
-
 
     # code checking methods ###################################################
 
@@ -568,8 +516,11 @@ warning, statement which respectively contain the number of errors / warnings\
             messages = set(msg for msg in checker.msgs
                            if msg[0] != 'F' and self.is_message_enabled(msg))
             if (messages or
-                any(self.report_is_enabled(r[0]) for r in checker.reports)):
+                    any(self.report_is_enabled(r[0]) for r in checker.reports)):
                 neededcheckers.append(checker)
+        # Sort checkers by priority
+        neededcheckers = sorted(neededcheckers, key=attrgetter('priority'),
+                                reverse=True)
         return neededcheckers
 
     def should_analyze_file(self, modname, path): # pylint: disable=unused-argument
@@ -592,6 +543,12 @@ warning, statement which respectively contain the number of errors / warnings\
         """main checking entry: check a list of files or modules from their
         name.
         """
+        # initialize msgs_state now that all messages have been registered into
+        # the store
+        for msg in self.msgs_store.messages:
+            if not msg.may_be_emitted():
+                self._msgs_state[msg.msgid] = False
+
         if not isinstance(files_or_modules, (list, tuple)):
             files_or_modules = (files_or_modules,)
         walker = PyLintASTWalker(self)
@@ -617,14 +574,18 @@ warning, statement which respectively contain the number of errors / warnings\
             astroid = self.get_ast(filepath, modname)
             if astroid is None:
                 continue
-            self.base_name = descr['basename']
-            self.base_file = descr['basepath']
+            # XXX to be correct we need to keep module_msgs_state for every
+            # analyzed module (the problem stands with localized messages which
+            # are only detected in the .close step)
+            self.file_state = FileState(descr['basename'])
             self._ignore_file = False
             # fix the current file (if the source file was not available or
             # if it's actually a c extension)
             self.current_file = astroid.file # pylint: disable=maybe-no-member
             self.check_astroid_module(astroid, walker, rawcheckers, tokencheckers)
-            self._add_suppression_messages()
+            # warn about spurious inline messages handling
+            for msgid, line, args in self.file_state.iter_spurious_suppression_messages(self.msgs_store):
+                self.add_message(msgid, line, None, args)
         # notify global end
         self.set_current_module('')
         self.stats['statement'] = walker.nbstatements
@@ -658,13 +619,6 @@ warning, statement which respectively contain the number of errors / warnings\
         self.stats['by_module'][modname]['statement'] = 0
         for msg_cat in MSG_TYPES.itervalues():
             self.stats['by_module'][modname][msg_cat] = 0
-        # XXX hack, to be correct we need to keep module_msgs_state
-        # for every analyzed module (the problem stands with localized
-        # messages which are only detected in the .close step)
-        if modname:
-            self._module_msgs_state = {}
-            self._raw_module_msgs_state = {}
-            self._ignored_msgs = {}
 
     def get_ast(self, filepath, modname):
         """return a ast(roid) representation for a module"""
@@ -698,12 +652,8 @@ warning, statement which respectively contain the number of errors / warnings\
             if self._ignore_file:
                 return False
             # walk ast to collect line numbers
-            for msg, lines in self._module_msgs_state.iteritems():
-                self._raw_module_msgs_state[msg] = lines.copy()
-            orig_state = self._module_msgs_state.copy()
-            self._module_msgs_state = {}
-            self._suppression_mapping = {}
-            self.collect_block_lines(astroid, orig_state)
+            self.file_state.collect_block_lines(self.msgs_store, astroid)
+            # run raw and tokens checkers
             for checker in rawcheckers:
                 checker.process_module(astroid)
             for checker in tokencheckers:
@@ -718,7 +668,7 @@ warning, statement which respectively contain the number of errors / warnings\
         """initialize counters"""
         self.stats = {'by_module' : {},
                       'by_msg' : {},
-                       }
+                     }
         for msg_cat in MSG_TYPES.itervalues():
             self.stats[msg_cat] = 0
 
@@ -727,9 +677,9 @@ warning, statement which respectively contain the number of errors / warnings\
 
         if persistent run, pickle results for later comparison
         """
-        if self.base_name is not None:
+        if self.file_state.base_name is not None:
             # load previous results if any
-            previous_stats = config.load_results(self.base_name)
+            previous_stats = config.load_results(self.file_state.base_name)
             # XXX code below needs refactoring to be more reporter agnostic
             self.reporter.on_close(self.stats, previous_stats)
             if self.config.reports:
@@ -743,23 +693,11 @@ warning, statement which respectively contain the number of errors / warnings\
                 self.reporter.display_results(sect)
             # save results if persistent run
             if self.config.persistent:
-                config.save_results(self.stats, self.base_name)
+                config.save_results(self.stats, self.file_state.base_name)
         else:
             self.reporter.on_close(self.stats, {})
 
     # specific reports ########################################################
-
-    def _add_suppression_messages(self):
-        for warning, lines in self._raw_module_msgs_state.iteritems():
-            for line, enable in lines.iteritems():
-                if not enable and (warning, line) not in self._ignored_msgs:
-                    self.add_message('useless-suppression', line, None,
-                                     (self.get_msg_display_string(warning),))
-        # don't use iteritems here, _ignored_msgs may be modified by add_message
-        for (warning, from_), lines in self._ignored_msgs.items():
-            for line in lines:
-                self.add_message('suppressed-message', line, None,
-                                 (self.get_msg_display_string(warning), from_))
 
     def report_evaluation(self, sect, stats, previous_stats):
         """make the global evaluation report"""
@@ -906,11 +844,11 @@ group are mutually exclusive.'),
         self._plugins = []
         try:
             preprocess_options(args, {
-                    # option: (callback, takearg)
-                    'init-hook':   (cb_init_hook, True),
-                    'rcfile':       (self.cb_set_rcfile, True),
-                    'load-plugins': (self.cb_add_plugins, True),
-                    })
+                # option: (callback, takearg)
+                'init-hook':   (cb_init_hook, True),
+                'rcfile':       (self.cb_set_rcfile, True),
+                'load-plugins': (self.cb_add_plugins, True),
+                })
         except ArgumentPreprocessingError, ex:
             print >> sys.stderr, ex
             sys.exit(32)
@@ -925,15 +863,15 @@ group are mutually exclusive.'),
              {'action' : 'callback', 'callback' : lambda *args: 1,
               'type' : 'string', 'metavar': '<code>',
               'level': 1,
-              'help' : 'Python code to execute, usually for sys.path \
-manipulation such as pygtk.require().'}),
+              'help' : 'Python code to execute, usually for sys.path '
+                       'manipulation such as pygtk.require().'}),
 
             ('help-msg',
              {'action' : 'callback', 'type' : 'string', 'metavar': '<msg-id>',
               'callback' : self.cb_help_message,
               'group': 'Commands',
-              'help' : '''Display a help message for the given message id and \
-exit. The value may be a comma separated list of message ids.'''}),
+              'help' : 'Display a help message for the given message id and '
+                       'exit. The value may be a comma separated list of message ids.'}),
 
             ('list-msgs',
              {'action' : 'callback', 'metavar': '<msg-id>',
@@ -950,9 +888,10 @@ exit. The value may be a comma separated list of message ids.'''}),
             ('generate-rcfile',
              {'action' : 'callback', 'callback' : self.cb_generate_config,
               'group': 'Commands',
-              'help' : '''Generate a sample configuration file according to \
-the current configuration. You can put other options before this one to get \
-them in the generated configuration.'''}),
+              'help' : 'Generate a sample configuration file according to '
+                       'the current configuration. You can put other options '
+                       'before this one to get them in the generated '
+                       'configuration.'}),
 
             ('generate-man',
              {'action' : 'callback', 'callback' : self.cb_generate_manpage,
@@ -962,9 +901,9 @@ them in the generated configuration.'''}),
             ('errors-only',
              {'action' : 'callback', 'callback' : self.cb_error_mode,
               'short': 'E',
-              'help' : '''In error mode, checkers without error messages are \
-disabled and for others, only the ERROR messages are displayed, and no reports \
-are done by default'''}),
+              'help' : 'In error mode, checkers without error messages are '
+                       'disabled and for others, only the ERROR messages are '
+                       'displayed, and no reports are done by default'''}),
 
             ('profile',
              {'type' : 'yn', 'metavar' : '<y_or_n>',
@@ -978,6 +917,7 @@ are done by default'''}),
         linter.load_plugin_modules(self._plugins)
         # add some help section
         linter.add_help_section('Environment variables', config.ENV_HELP, level=1)
+        # pylint: disable=bad-continuation
         linter.add_help_section('Output',
 'Using the default text output, the message format is :                          \n'
 '                                                                                \n'
@@ -990,7 +930,7 @@ are done by default'''}),
 '    * (E) error, for probable bugs in the code                                  \n'
 '    * (F) fatal, if an error occurred which prevented pylint from doing further\n'
 'processing.\n'
-        , level=1)
+                                , level=1)
         linter.add_help_section('Output status code',
 'Pylint should leave with following status code:                                 \n'
 '    * 0 if everything went fine                                                 \n'
@@ -1003,7 +943,7 @@ are done by default'''}),
 '                                                                                \n'
 'status 1 to 16 will be bit-ORed so you can know which different categories has\n'
 'been issued by analysing pylint output status code\n',
-        level=1)
+                                level=1)
         # read configuration
         linter.disable('pointless-except')
         linter.disable('suppressed-message')
@@ -1084,7 +1024,7 @@ are done by default'''}),
 
     def cb_help_message(self, option, optname, value, parser):
         """optik callback for printing some help about a particular message"""
-        self.linter.help_message(splitstrip(value))
+        self.linter.msgs_store.help_message(splitstrip(value))
         sys.exit(0)
 
     def cb_full_documentation(self, option, optname, value, parser):
@@ -1094,7 +1034,7 @@ are done by default'''}),
 
     def cb_list_messages(self, option, optname, value, parser): # FIXME
         """optik callback for printing available messages"""
-        self.linter.list_messages()
+        self.linter.msgs_store.list_messages()
         sys.exit(0)
 
 def cb_init_hook(optname, value):

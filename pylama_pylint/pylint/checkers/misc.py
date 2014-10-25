@@ -32,10 +32,11 @@ MSGS = {
               'Used when a source line cannot be decoded using the specified '
               'source file encoding.',
               {'maxversion': (3, 0)}),
-    }
+}
 
 
 class EncodingChecker(BaseChecker):
+
     """checks for:
     * warning notes in the code like FIXME, XXX
     * encoding issues.
@@ -47,17 +48,27 @@ class EncodingChecker(BaseChecker):
     msgs = MSGS
 
     options = (('notes',
-                {'type' : 'csv', 'metavar' : '<comma separated values>',
-                 'default' : ('FIXME', 'XXX', 'TODO'),
-                 'help' : 'List of note tags to take in consideration, \
-separated by a comma.'
-                 }),
-               )
+                {'type': 'csv', 'metavar': '<comma separated values>',
+                 'default': ('FIXME', 'XXX', 'TODO'),
+                 'help': ('List of note tags to take in consideration, '
+                          'separated by a comma.')}),)
 
     def _check_note(self, notes, lineno, line):
+        # First, simply check if the notes are in the line at all. This is an
+        # optimisation to prevent using the regular expression on every line,
+        # but rather only on lines which may actually contain one of the notes.
+        # This prevents a pathological problem with lines that are hundreds
+        # of thousands of characters long.
+        for note in self.config.notes:
+            if note in line:
+                break
+        else:
+            return
+
         match = notes.search(line)
-        if match:
-            self.add_message('fixme', args=line[match.start():-1], line=lineno)
+        if not match:
+            return
+        self.add_message('fixme', args=line[match.start(1):-1], line=lineno)
 
     def _check_encoding(self, lineno, line, file_encoding):
         try:
@@ -71,19 +82,22 @@ separated by a comma.'
         notes
         """
         stream = module.file_stream
-        stream.seek(0) # XXX may be removed with astroid > 0.23
+        stream.seek(0)  # XXX may be removed with astroid > 0.23
         if self.config.notes:
-            notes = re.compile('|'.join(self.config.notes))
+            notes = re.compile(
+                r'.*?#\s*(%s)(:*\s*.+)' % "|".join(self.config.notes))
         else:
             notes = None
         if module.file_encoding:
             encoding = module.file_encoding
         else:
             encoding = 'ascii'
+
         for lineno, line in enumerate(stream):
-            line = self._check_encoding(lineno+1, line, encoding)
+            line = self._check_encoding(lineno + 1, line, encoding)
             if line is not None and notes:
-                self._check_note(notes, lineno+1, line)
+                self._check_note(notes, lineno + 1, line)
+
 
 def register(linter):
     """required method to auto register this checker"""

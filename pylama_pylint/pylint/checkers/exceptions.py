@@ -137,8 +137,8 @@ class ExceptionsChecker(BaseChecker):
                  'help' : 'Exceptions that will emit a warning '
                           'when being caught. Defaults to "%s"' % (
                               ', '.join(OVERGENERAL_EXCEPTIONS),)}
-                ),
-               )
+               ),
+              )
 
     @check_messages('raising-string', 'nonstandard-exception', 'raising-bad-type',
                     'raising-non-exception', 'notimplemented-raised', 'bad-exception-context')
@@ -162,7 +162,7 @@ class ExceptionsChecker(BaseChecker):
                 elif (not isinstance(cause, astroid.Class) and
                       not inherit_from_std_ex(cause)):
                     self.add_message('bad-exception-context',
-                                      node=node)
+                                     node=node)
         expr = node.exc
         if self._check_raise_value(node, expr):
             return
@@ -239,14 +239,14 @@ class ExceptionsChecker(BaseChecker):
         nb_handlers = len(node.handlers)
         for index, handler  in enumerate(node.handlers):
             # single except doing nothing but "pass" without else clause
-            if nb_handlers == 1 and is_empty(handler.body) and not node.orelse:
+            if is_empty(handler.body) and not node.orelse:
                 self.add_message('pointless-except', node=handler.type or handler.body[0])
             if handler.type is None:
-                if nb_handlers == 1 and not is_raising(handler.body):
+                if not is_raising(handler.body):
                     self.add_message('bare-except', node=handler)
                 # check if a "except:" is followed by some other
                 # except
-                elif index < (nb_handlers - 1):
+                if index < (nb_handlers - 1):
                     msg = 'empty except clause should always appear last'
                     self.add_message('bad-except-order', node=node, args=msg)
 
@@ -269,12 +269,12 @@ class ExceptionsChecker(BaseChecker):
                                 previous_exc.name, exc.name)
                             self.add_message('bad-except-order', node=handler.type, args=msg)
                     if (exc.name in self.config.overgeneral_exceptions
-                        and exc.root().name == EXCEPTIONS_MODULE
-                        and nb_handlers == 1 and not is_raising(handler.body)):
+                            and exc.root().name == EXCEPTIONS_MODULE
+                            and not is_raising(handler.body)):
                         self.add_message('broad-except', args=exc.name, node=handler.type)
 
                     if (not inherit_from_std_ex(exc) and
-                        exc.root().name != BUILTINS_NAME):
+                            exc.root().name != BUILTINS_NAME):
                         # try to see if the exception is based on a C based
                         # exception, by infering all the base classes and
                         # looking for inference errors

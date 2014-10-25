@@ -72,7 +72,7 @@ class InferenceContext(object):
         name = self.lookupname
         if (node, name) in self.path:
             raise StopIteration()
-        self.path.add( (node, name) )
+        self.path.add((node, name))
 
     def clone(self):
         # XXX copy lookupname/callcontext ?
@@ -259,14 +259,14 @@ class UnboundMethod(Proxy):
         # instance of the class given as first argument.
         if (self._proxied.name == '__new__' and
                 self._proxied.parent.frame().qname() == '%s.object' % BUILTINS):
-            return ((x is YES and x or Instance(x))
-                    for x in caller.args[0].infer())
+            infer = caller.args[0].infer() if caller.args else []
+            return ((x is YES and x or Instance(x)) for x in infer)
         return self._proxied.infer_call_result(caller, context)
 
 
 class BoundMethod(UnboundMethod):
     """a special node representing a method bound to an instance"""
-    def __init__(self,  proxy, bound):
+    def __init__(self, proxy, bound):
         UnboundMethod.__init__(self, proxy)
         self.bound = bound
 
@@ -387,15 +387,14 @@ class NodeNG(object):
         return '%s(%s)' % (self.__class__.__name__, self._repr_name())
 
     def __repr__(self):
-        return '<%s(%s) l.%s [%s] at Ox%x>' % (self.__class__.__name__,
-                                           self._repr_name(),
-                                           self.fromlineno,
-                                           self.root().name,
-                                           id(self))
+        return '<%s(%s) l.%s [%s] at 0x%x>' % (self.__class__.__name__,
+                                               self._repr_name(),
+                                               self.fromlineno,
+                                               self.root().name,
+                                               id(self))
 
 
     def accept(self, visitor):
-        klass = self.__class__.__name__
         func = getattr(visitor, "visit_" + self.__class__.__name__.lower())
         return func(self)
 

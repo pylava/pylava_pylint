@@ -25,11 +25,13 @@ from astroid import are_exclusive, builtin_lookup, AstroidBuildingException
 from logilab.common.modutils import file_from_modpath
 
 from pylint.interfaces import IAstroidChecker
+from pylint.utils import get_global_option
 from pylint.checkers import BaseChecker
-from pylint.checkers.utils import (PYMETHODS, is_ancestor_name, is_builtin,
-     is_defined_before, is_error, is_func_default, is_func_decorator,
-     assign_parent, check_messages, is_inside_except, clobber_in_except,
-     get_all_elements)
+from pylint.checkers.utils import (
+    PYMETHODS, is_ancestor_name, is_builtin,
+    is_defined_before, is_error, is_func_default, is_func_decorator,
+    assign_parent, check_messages, is_inside_except, clobber_in_except,
+    get_all_elements)
 
 
 def in_for_else_branch(parent, stmt):
@@ -67,6 +69,71 @@ def _get_unpacking_extra_info(node, infered):
     elif infered.lineno:
         more = ' defined at line %s of %s' % (infered.lineno, infered_module)
     return more
+
+def _detect_global_scope(node, frame, defframe):
+    """ Detect that the given frames shares a global
+    scope.
+
+    Two frames shares a global scope when neither
+    of them are hidden under a function scope, as well
+    as any of parent scope of them, until the root scope.
+    In this case, depending from something defined later on
+    will not work, because it is still undefined.
+
+    Example:
+        class A:
+            # B has the same global scope as `C`, leading to a NameError.
+            class B(C): ...
+        class C: ...
+
+    """
+    def_scope = scope = None
+    if frame and frame.parent:
+        scope = frame.parent.scope()
+    if defframe and defframe.parent:
+        def_scope = defframe.parent.scope()
+    if isinstance(frame, astroid.Function):
+        # If the parent of the current node is a
+        # function, then it can be under its scope
+        # (defined in, which doesn't concern us) or
+        # the `->` part of annotations. The same goes
+        # for annotations of function arguments, they'll have
+        # their parent the Arguments node.
+        if not isinstance(node.parent,
+                          (astroid.Function, astroid.Arguments)):
+            return False
+    elif any(not isinstance(f, (astroid.Class, astroid.Module))
+             for f in (frame, defframe)):
+        # Not interested in other frames, since they are already
+        # not in a global scope.
+        return False
+
+    break_scopes = []
+    for s in (scope, def_scope):
+        # Look for parent scopes. If there is anything different
+        # than a module or a class scope, then they frames don't
+        # share a global scope.
+        parent_scope = s
+        while parent_scope:
+            if not isinstance(parent_scope, (astroid.Class, astroid.Module)):
+                break_scopes.append(parent_scope)
+                break
+            if parent_scope.parent:
+                parent_scope = parent_scope.parent.scope()
+            else:
+                break
+    if break_scopes and len(set(break_scopes)) != 1:
+        # Store different scopes than expected.
+        # If the stored scopes are, in fact, the very same, then it means
+        # that the two frames (frame and defframe) shares the same scope,
+        # and we could apply our lineno analysis over them.
+        # For instance, this works when they are inside a function, the node
+        # that uses a definition and the definition itself.
+        return False
+    # At this point, we are certain that frame and defframe shares a scope
+    # and the definition of the first depends on the second.
+    return frame.lineno < defframe.lineno
+
 
 MSGS = {
     'E0601': ('Using variable %r before assignment',
@@ -147,7 +214,7 @@ MSGS = {
               'a sequence is used in an unpack assignment'),
 
     'W0640': ('Cell variable %s defined in loop',
-              'cell-var-from-loop', 
+              'cell-var-from-loop',
               'A variable used in a closure is defined in a loop. '
               'This will result in all closures using the same value for '
               'the closed-over variable.'),
@@ -168,8 +235,7 @@ class VariablesChecker(BaseChecker):
     name = 'variables'
     msgs = MSGS
     priority = -1
-    options = (
-               ("init-import",
+    options = (("init-import",
                 {'default': 0, 'type' : 'yn', 'metavar' : '<y_or_n>',
                  'help' : 'Tells whether we should check for unused import in \
 __init__ files.'}),
@@ -183,8 +249,8 @@ variables (i.e. expectedly not used).'}),
                  'metavar' : '<comma separated list>',
                  'help' : 'List of additional names supposed to be defined in \
 builtins. Remember that you should avoid to define new builtins when possible.'
-                 }),
-               )
+                }),
+              )
     def __init__(self, linter=None):
         BaseChecker.__init__(self, linter)
         self._to_consume = None
@@ -240,7 +306,7 @@ builtins. Remember that you should avoid to define new builtins when possible.'
                                     self.add_message('undefined-all-variable',
                                                      args=elt_name,
                                                      node=elt)
-                                except SyntaxError, exc:
+                                except SyntaxError:
                                     # don't yield an syntax-error warning,
                                     # because it will be later yielded
                                     # when the file will be checked
@@ -355,6 +421,13 @@ builtins. Remember that you should avoid to define new builtins when possible.'
         authorized_rgx = self.config.dummy_variables_rgx
         called_overridden = False
         argnames = node.argnames()
+        global_names = set()
+        nonlocal_names = set()
+        for global_stmt in node.nodes_of_class(astroid.Global):
+            global_names.update(set(global_stmt.names))
+        for nonlocal_stmt in node.nodes_of_class(astroid.Nonlocal):
+            nonlocal_names.update(set(nonlocal_stmt.names))
+
         for name, stmts in not_consumed.iteritems():
             # ignore some special names specified by user configuration
             if authorized_rgx.match(name):
@@ -364,6 +437,23 @@ builtins. Remember that you should avoid to define new builtins when possible.'
             stmt = stmts[0]
             if isinstance(stmt, astroid.Global):
                 continue
+            if isinstance(stmt, (astroid.Import, astroid.From)):
+                # Detect imports, assigned to global statements.
+                if global_names:
+                    skip = False
+                    for import_name, import_alias in stmt.names:
+                        # If the import uses an alias, check only that.
+                        # Otherwise, check only the import name.
+                        if import_alias:
+                            if import_alias in global_names:
+                                skip = True
+                                break
+                        elif import_name in global_names:
+                            skip = True
+                            break
+                    if skip:
+                        continue
+
             # care about functions with unknown argument (builtins)
             if name in argnames:
                 if is_method:
@@ -383,6 +473,9 @@ builtins. Remember that you should avoid to define new builtins when possible.'
                     continue
                 self.add_message('unused-argument', args=name, node=stmt)
             else:
+                if stmt.parent and isinstance(stmt.parent, astroid.Assign):
+                    if name in nonlocal_names:
+                        continue
                 self.add_message('unused-variable', args=name, node=stmt)
 
     @check_messages('global-variable-undefined', 'global-variable-not-assigned', 'global-statement',
@@ -411,7 +504,26 @@ builtins. Remember that you should avoid to define new builtins when possible.'
                     break
             else:
                 # global but no assignment
-                self.add_message('global-variable-not-assigned', args=name, node=node)
+                # Detect imports in the current frame, with the required
+                # name. Such imports can be considered assignments.
+                imports = frame.nodes_of_class((astroid.Import, astroid.From))
+                for import_node in imports:
+                    found = False
+                    for import_name, import_alias in import_node.names:
+                        # If the import uses an alias, check only that.
+                        # Otherwise, check only the import name.
+                        if import_alias:
+                            if import_alias == name:
+                                found = True
+                                break
+                        elif import_name and import_name == name:
+                            found = True
+                            break
+                    if found:
+                        break
+                else:
+                    self.add_message('global-variable-not-assigned',
+                                     args=name, node=node)
                 default_message = False
             if not assign_nodes:
                 continue
@@ -430,8 +542,14 @@ builtins. Remember that you should avoid to define new builtins when possible.'
             self.add_message('global-statement', node=node)
 
     def _check_late_binding_closure(self, node, assignment_node, scope_type):
+        def _is_direct_lambda_call():
+            return (isinstance(node_scope.parent, astroid.CallFunc)
+                    and node_scope.parent.func is node_scope)
+
         node_scope = node.scope()
         if not isinstance(node_scope, (astroid.Lambda, astroid.Function)):
+            return
+        if isinstance(node.parent, astroid.Arguments):
             return
 
         if isinstance(assignment_node, astroid.Comprehension):
@@ -445,9 +563,11 @@ builtins. Remember that you should avoid to define new builtins when possible.'
                     break
                 maybe_for = maybe_for.parent
             else:
-                if maybe_for.parent_of(node_scope) and not isinstance(node_scope.statement(), astroid.Return):
+                if (maybe_for.parent_of(node_scope)
+                        and not _is_direct_lambda_call()
+                        and not isinstance(node_scope.statement(), astroid.Return)):
                     self.add_message('cell-var-from-loop', node=node, args=node.name)
-        
+
     def _loopvar_name(self, node, name):
         # filter variables according to node's scope
         # XXX used to filter parents but don't remember why, and removing this
@@ -474,7 +594,7 @@ builtins. Remember that you should avoid to define new builtins when possible.'
             _astmts = astmts[:1]
         for i, stmt in enumerate(astmts[1:]):
             if (astmts[i].statement().parent_of(stmt)
-                and not in_for_else_branch(astmts[i].statement(), stmt)):
+                    and not in_for_else_branch(astmts[i].statement(), stmt)):
                 continue
             _astmts.append(stmt)
         astmts = _astmts
@@ -514,7 +634,7 @@ builtins. Remember that you should avoid to define new builtins when possible.'
         # a decorator, then start from the parent frame of the function instead
         # of the function frame - and thus open an inner class scope
         if (is_func_default(node) or is_func_decorator(node)
-            or is_ancestor_name(frame, node)):
+                or is_ancestor_name(frame, node)):
             start_index = len(self._to_consume) - 2
         else:
             start_index = len(self._to_consume) - 1
@@ -528,9 +648,16 @@ builtins. Remember that you should avoid to define new builtins when possible.'
             # names. The only exception is when the starting scope is a
             # comprehension and its direct outer scope is a class
             if scope_type == 'class' and i != start_index and not (
-                base_scope_type == 'comprehension' and i == start_index-1):
-                # XXX find a way to handle class scope in a smoother way
-                continue
+                    base_scope_type == 'comprehension' and i == start_index-1):
+                # Detect if we are in a local class scope, as an assignment.
+                # For example, the following is fair game.
+                # class A:
+                #    b = 1
+                #    c = lambda b=b: b * b
+                class_assignment = (isinstance(frame, astroid.Class) and
+                                    name in frame.locals)
+                if not class_assignment:
+                    continue
             # the name has already been consumed, only check it's not a loop
             # variable used outside the loop
             if name in consumed:
@@ -552,7 +679,7 @@ builtins. Remember that you should avoid to define new builtins when possible.'
                 defframe = defstmt.frame()
                 maybee0601 = True
                 if not frame is defframe:
-                    maybee0601 = False
+                    maybee0601 = _detect_global_scope(node, frame, defframe)
                 elif defframe.parent is None:
                     # we are at the module level, check the name is not
                     # defined in builtins
@@ -569,16 +696,43 @@ builtins. Remember that you should avoid to define new builtins when possible.'
                             maybee0601 = not any(isinstance(child, astroid.Nonlocal)
                                                  and name in child.names
                                                  for child in defframe.get_children())
+                if (self._to_consume[-1][-1] == 'lambda' and
+                        isinstance(frame, astroid.Class)
+                        and name in frame.locals):
+                    maybee0601 = True
+                else:
+                    maybee0601 = maybee0601 and stmt.fromlineno <= defstmt.fromlineno
+
                 if (maybee0601
-                    and stmt.fromlineno <= defstmt.fromlineno
-                    and not is_defined_before(node)
-                    and not are_exclusive(stmt, defstmt, ('NameError', 'Exception', 'BaseException'))):
+                        and not is_defined_before(node)
+                        and not are_exclusive(stmt, defstmt, ('NameError',
+                                                              'Exception',
+                                                              'BaseException'))):
                     if defstmt is stmt and isinstance(node, (astroid.DelName,
                                                              astroid.AssName)):
                         self.add_message('undefined-variable', args=name, node=node)
                     elif self._to_consume[-1][-1] != 'lambda':
-                        # E0601 may *not* occurs in lambda scope
+                        # E0601 may *not* occurs in lambda scope.
                         self.add_message('used-before-assignment', args=name, node=node)
+                    elif self._to_consume[-1][-1] == 'lambda':
+                        # E0601 can occur in class-level scope in lambdas, as in
+                        # the following example:
+                        #   class A:
+                        #      x = lambda attr: f + attr
+                        #      f = 42
+                        if isinstance(frame, astroid.Class) and name in frame.locals:
+                            if isinstance(node.parent, astroid.Arguments):
+                                # Doing the following is fine:
+                                #   class A:
+                                #      x = 42
+                                #      y = lambda attr=x: attr
+                                if stmt.fromlineno <= defstmt.fromlineno:
+                                    self.add_message('used-before-assignment',
+                                                     args=name, node=node)
+                            else:
+                                self.add_message('undefined-variable',
+                                                 args=name, node=node)
+
             if isinstance(node, astroid.AssName): # Aug AssName
                 del consumed[name]
             else:
@@ -649,6 +803,10 @@ builtins. Remember that you should avoid to define new builtins when possible.'
             # attempt to check unpacking is properly balanced
             values = infered.itered()
             if len(targets) != len(values):
+                # Check if we have starred nodes.
+                if any(isinstance(target, astroid.Starred)
+                       for target in targets):
+                    return
                 self.add_message('unbalanced-tuple-unpacking', node=node,
                                  args=(_get_unpacking_extra_info(node, infered),
                                        len(targets),
@@ -675,6 +833,8 @@ builtins. Remember that you should avoid to define new builtins when possible.'
         if the latest access name corresponds to a module, return it
         """
         assert isinstance(module, astroid.Module), module
+        ignored_modules = get_global_option(self, 'ignored-modules',
+                                            default=[])
         while module_names:
             name = module_names.pop(0)
             if name == '__dict__':
@@ -685,7 +845,10 @@ builtins. Remember that you should avoid to define new builtins when possible.'
                 if module is astroid.YES:
                     return None
             except astroid.NotFoundError:
-                self.add_message('no-name-in-module', args=(name, module.name), node=node)
+                if module.name in ignored_modules:
+                    return None
+                self.add_message('no-name-in-module',
+                                 args=(name, module.name), node=node)
                 return None
             except astroid.InferenceError:
                 return None
@@ -720,16 +883,51 @@ class VariablesChecker3k(VariablesChecker):
         """ Update consumption analysis variable
         for metaclasses.
         """
-        for klass in node.nodes_of_class(astroid.Class):
-            if klass._metaclass:
-                metaclass = klass.metaclass()
-                module_locals = self._to_consume[0][0]
+        module_locals = self._to_consume[0][0]
+        module_imports = self._to_consume[0][1]
+        consumed = {}
 
+        for klass in node.nodes_of_class(astroid.Class):
+            found = metaclass = name = None
+            if not klass._metaclass:
+                # Skip if this class doesn't use
+                # explictly a metaclass, but inherits it from ancestors
+                continue
+
+            metaclass = klass.metaclass()
+
+            # Look the name in the already found locals.
+            # If it's not found there, look in the module locals
+            # and in the imported modules.
+            if isinstance(klass._metaclass, astroid.Name):
+                name = klass._metaclass.name
+            elif metaclass:
+                # if it uses a `metaclass=module.Class`
+                name = metaclass.root().name
+
+            if name:
+                found = consumed.setdefault(
+                    name, module_locals.get(name, module_imports.get(name)))
+
+            if found is None and not metaclass:
+                name = None
                 if isinstance(klass._metaclass, astroid.Name):
-                    module_locals.pop(klass._metaclass.name, None)
-                if metaclass:                
-                    # if it uses a `metaclass=module.Class`                            
-                    module_locals.pop(metaclass.root().name, None)
+                    name = klass._metaclass.name
+                elif isinstance(klass._metaclass, astroid.Getattr):
+                    name = klass._metaclass.as_string()
+
+                if name is not None:
+                    if not (name in astroid.Module.scope_attrs or
+                            is_builtin(name) or
+                            name in self.config.additional_builtins or
+                            name in node.locals):
+                        self.add_message('undefined-variable',
+                                         node=klass,
+                                         args=(name, ))
+        # Pop the consumed items, in order to
+        # avoid having unused-import false positives
+        for name in consumed:
+            module_locals.pop(name, None)
         super(VariablesChecker3k, self).leave_module(node)
 
 if sys.version_info >= (3, 0):

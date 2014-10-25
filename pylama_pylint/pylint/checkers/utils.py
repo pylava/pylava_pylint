@@ -19,6 +19,7 @@
 """
 
 import re
+import sys
 import string
 
 import astroid
@@ -26,8 +27,8 @@ from astroid import scoped_nodes
 from logilab.common.compat import builtins
 
 BUILTINS_NAME = builtins.__name__
-
 COMP_NODE_TYPES = astroid.ListComp, astroid.SetComp, astroid.DictComp, astroid.GenExpr
+PY3K = sys.version_info[0] == 3
 
 
 class NoSuchArgumentError(Exception):
@@ -66,11 +67,10 @@ def clobber_in_except(node):
         if is_builtin(name):
             return (True, (name, 'builtins'))
         else:
-            scope, stmts = node.lookup(name)
-            if (stmts and
-                not isinstance(stmts[0].ass_type(),
-                               (astroid.Assign, astroid.AugAssign,
-                                astroid.ExceptHandler))):
+            stmts = node.lookup(name)[1]
+            if (stmts and not isinstance(stmts[0].ass_type(),
+                                         (astroid.Assign, astroid.AugAssign,
+                                          astroid.ExceptHandler))):
                 return (True, (name, 'outer scope (line %s)' % stmts[0].fromlineno))
     return (False, None)
 
@@ -154,10 +154,10 @@ def is_defined_before(var_node):
         elif isinstance(_node, astroid.With):
             for expr, vars in _node.items:
                 if expr.parent_of(var_node):
-                    break                
+                    break
                 if (vars and
-                    isinstance(vars, astroid.AssName) and
-                    vars.name == varname):
+                        isinstance(vars, astroid.AssName) and
+                        vars.name == varname):
                     return True
         elif isinstance(_node, (astroid.Lambda, astroid.Function)):
             if _node.args.is_argument(varname):
@@ -204,9 +204,9 @@ def is_func_decorator(node):
         if isinstance(parent, astroid.Decorators):
             return True
         if (parent.is_statement or
-            isinstance(parent, astroid.Lambda) or
-            isinstance(parent, (scoped_nodes.ComprehensionScope,
-                                scoped_nodes.ListComp))):
+                isinstance(parent, astroid.Lambda) or
+                isinstance(parent, (scoped_nodes.ComprehensionScope,
+                                    scoped_nodes.ListComp))):
             break
         parent = parent.parent
     return False
@@ -268,7 +268,7 @@ PYMETHODS = set(('__new__', '__init__', '__del__', '__hash__',
                  '__or__', '__ior__', '__ror__',
                  '__xor__', '__ixor__', '__rxor__',
                  # XXX To be continued
-                 ))
+                ))
 
 def check_messages(*messages):
     """decorator to store messages that are handled by a checker method"""
@@ -345,7 +345,11 @@ def parse_format_string(format_string):
             if char in 'hlL':
                 i, char = next_char(i)
             # Parse the conversion type (mandatory).
-            if char not in 'diouxXeEfFgGcrs%':
+            if PY3K:
+                flags = 'diouxXeEfFgGcrs%a'
+            else:
+                flags = 'diouxXeEfFgGcrs%'
+            if char not in flags:
                 raise UnsupportedFormatCharacter(i)
             if key:
                 keys.add(key)
@@ -354,12 +358,13 @@ def parse_format_string(format_string):
         i += 1
     return keys, num_args
 
+
 def is_attr_protected(attrname):
     """return True if attribute name is protected (start with _ and some other
     details), False otherwise.
     """
     return attrname[0] == '_' and not attrname == '_' and not (
-             attrname.startswith('__') and attrname.endswith('__'))
+        attrname.startswith('__') and attrname.endswith('__'))
 
 def node_frame_class(node):
     """return klass node for a method node (or a staticmethod or a
@@ -380,8 +385,8 @@ def is_super_call(expr):
     is super. Check before that you're in a method.
     """
     return (isinstance(expr, astroid.CallFunc) and
-        isinstance(expr.func, astroid.Name) and
-        expr.func.name == 'super')
+            isinstance(expr.func, astroid.Name) and
+            expr.func.name == 'super')
 
 def is_attr_private(attrname):
     """Check that attribute name is private (at least two leading underscores,
