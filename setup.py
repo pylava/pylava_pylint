@@ -55,9 +55,9 @@ setup(
     long_description=_read('README.rst'),
     platforms=('Any'),
 
-    author='horneds',
+    author='Kirill Klenov',
     author_email='horneds@gmail.com',
-    url='http://github.com/horneds/pylama_pylint',
+    url='http://github.com/klen/pylama_pylint',
     classifiers=[
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
