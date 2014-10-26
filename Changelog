@@ -1,10 +1,10 @@
+2014-10-26  horneds
+
+	* Update pylint to version 0.3.1
+
 2014-06-15  horneds
 
 	* Better handling pylint options from pylama files
-
-2014-05-07  horneds
-
-	* Update pylint
 
 2014-03-24  horneds
 
