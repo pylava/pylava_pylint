@@ -1,15 +1,14 @@
-VIRTUALENV=$(shell echo "$${VDIR:-'.env'}")
+VENV=$(shell echo "$${VDIR:-'.env'}")
 MODULE=pylama_pylint
 SPHINXBUILD=sphinx-build
 ALLSPHINXOPTS= -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 BUILDDIR=_build
 
-all: $(VIRTUALENV)
+all: $(VENV)
 
-$(VIRTUALENV): requirements.txt
-	@virtualenv --no-site-packages $(VIRTUALENV)
-	@$(VIRTUALENV)/bin/pip install -M -r requirements.txt
-	touch $(VIRTUALENV)
+$(VENV): requirements.txt
+	@[ -d $(VENV) ] || virtualenv --no-site-packages $(VENV)
+	@$(VENV)/bin/pip install -r requirements.txt
 
 .PHONY: help
 # target: help - Display callable targets
@@ -23,6 +22,37 @@ clean:
 	@find $(CURDIR) -name "*.orig" -delete
 	@find $(CURDIR) -name "*.pyc" -delete
 
+# ==============
+#  Bump version
+# ==============
+
+.PHONY: release
+VERSION?=minor
+# target: release - Bump version
+release:
+	@pip install bumpversion
+	@bumpversion $(VERSION)
+	@git checkout master
+	@git merge develop
+	@git checkout develop
+	@git push --all
+	@git push --tags
+
+.PHONY: minor
+minor: release
+
+.PHONY: patch
+patch:
+	make release VERSION=patch
+
+.PHONY: major
+major:
+	make release VERSION=major
+
+# ===============
+#  Build package
+# ===============
+
 .PHONY: register
 # target: register - Register module on PyPi
 register:
@@ -34,10 +64,14 @@ upload:
 	@python setup.py sdist upload || echo 'Already uploaded'
 	@python setup.py bdist_wheel upload || echo 'Already uploaded'
 
+# =============
+#  Development
+# =============
+
 .PHONY: t
 # target: t - Runs tests
-t: clean
-	@python setup.py test
+t: clean $(VENV)
+	@$(VENV)/bin/python setup.py test
 
 .PHONY: audit
 # target: audit - Audit code
