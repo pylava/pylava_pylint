@@ -3,9 +3,13 @@ Pylama_pylint
 
 pylama_pylint -- Support Pylint_ in Pylama_.
 
-.. image:: https://secure.travis-ci.org/klen/pylama_pylint.png?branch=develop
+.. image:: http://img.shields.io/travis/klen/pylama_pylint.svg?style=flat-square
     :target: http://travis-ci.org/klen/pylama_pylint
     :alt: Build Status
+
+.. image:: http://img.shields.io/pypi/v/pylama_pylint.svg?style=flat-square
+    :target: https://crate.io/packages/pylama
+    :alt: Version
 
 .. contents::
 
@@ -51,6 +55,8 @@ Contributors
 =============
 
 * klen_ (horneds@gmail.com)
+
+* Serg Baburin (https://github.com/gmist)
 
 
 License
