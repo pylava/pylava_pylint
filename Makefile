@@ -61,6 +61,7 @@ register:
 .PHONY: upload
 # target: upload - Upload module on PyPi
 upload:
+	@pip install wheel
 	@python setup.py sdist upload || echo 'Already uploaded'
 	@python setup.py bdist_wheel upload || echo 'Already uploaded'
 
