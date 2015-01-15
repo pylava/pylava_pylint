@@ -17,11 +17,11 @@ pylama_pylint -- Support Pylint_ in Pylama_.
 Requirements
 =============
 
-- python >= 2.6
+- python >= 2.7
 
 
 Installation
-=============
+============
 
 **Pylama_pylint** should be installed using pip: ::
 
@@ -52,7 +52,7 @@ Development of starter happens at github: https://github.com/klen/pylama_pylint
 
 
 Contributors
-=============
+============
 
 * klen_ (horneds@gmail.com)
 
