@@ -1,4 +1,9 @@
+*.egg-info
+/.eggs
+/.env
+/.ropeproject
+/build
+/dist
 /libs
 /todo.txt
-/dist
-/build
+__pycache__
