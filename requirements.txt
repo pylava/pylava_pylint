@@ -1,3 +1,2 @@
 pylama          >= 6.3.3
-logilab-common  >= 0.63.2
-pylint          == 1.4.4
+pylint          == 1.5.4
