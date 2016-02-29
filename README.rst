@@ -1,7 +1,7 @@
 Pylama_pylint
 #############
 
-pylama_pylint -- Support Pylint_ in Pylama_.
+pylama-pylint -- Support Pylint_ in Pylama_.
 
 .. image:: http://img.shields.io/travis/klen/pylama_pylint.svg?style=flat-square
     :target: http://travis-ci.org/klen/pylama_pylint
@@ -25,7 +25,7 @@ Installation
 
 **Pylama_pylint** should be installed using pip: ::
 
-    pip install pylama_pylint
+    pip install pylama-pylint
 
 
 Usage
