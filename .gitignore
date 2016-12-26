@@ -1,12 +1,14 @@
 *.egg-info
+*.pyc
+/.cache
 /.coverage
-/.tox
 /.eggs
 /.env
 /.ropeproject
+/.tox
 /build
 /dist
+/env
 /libs
 /todo.txt
 __pycache__
-/.cache
