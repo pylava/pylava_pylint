@@ -1,4 +1,4 @@
-""" Description. """
+"""Support pylint in Pylama."""
 
 # Module information
 # ==================
