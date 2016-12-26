@@ -1,2 +1,2 @@
 pylama          >= 6.3.3
-pylint          == 1.5.4
+pylint          == 1.6.4
