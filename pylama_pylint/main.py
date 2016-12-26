@@ -21,13 +21,14 @@ class Linter(BaseLinter):
     """Check code with Pylint."""
 
     @staticmethod
-    def run(path, code, params=None, ignore=None, select=None, clear_cache=False, **meta):
+    def run(path, code, params=None, ignore=None, select=None, **meta):
         """Pylint code checking.
 
         :return list: List of errors.
         """
         logger.debug('Start pylint')
 
+        clear_cache = params.pop('clear_cache', False)
         if clear_cache:
             MANAGER.astroid_cache.clear()
 
