@@ -5,8 +5,8 @@
 
 
 __version__ = "3.0.1"
-__project__ = "pylama_pylint"
-__author__ = "horneds <horneds@gmail.com>"
+__project__ = "pylava_pylint"
+__author__ = "Pylava Developers"
 __license__ = "BSD"
 
 from .main import Linter  # noqa

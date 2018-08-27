@@ -1,2 +1,2 @@
-pylama          >= 6.3.3
+pylava          >= 0.0.1
 pylint          >= 1.6.4

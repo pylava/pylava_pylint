@@ -1,12 +1,12 @@
 
 def test_base():
-    from pylama_pylint import Linter
+    from pylava_pylint import Linter
     assert Linter
 
 
 def test_pylint():
-    from pylama.core import run
-    from pylama.config import parse_options
+    from pylava.core import run
+    from pylava.config import parse_options
 
     options = parse_options(linters=['pylint'], config=False)
     options.ignore = set(['R0912', 'C0111', 'I0011', 'F0401'])
@@ -24,4 +24,4 @@ def test_pylint():
     assert len(errors) == 1
 
 
-# pylama:ignore=D
+# pylava:ignore=D

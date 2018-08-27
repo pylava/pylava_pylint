@@ -2,10 +2,10 @@
 
 """ Support pylint code checker.
 
-pylama_pylint
+pylava_pylint
 -------------
 
-pylama_pylint -- Pylint integration to pylama library.
+pylava_pylint -- Pylint integration to pylava library.
 
 """
 import re
@@ -22,7 +22,7 @@ def _read(fname):
     except IOError:
         return ''
 
-_meta = _read('pylama_pylint/__init__.py')
+_meta = _read('pylava_pylint/__init__.py')
 _license = re.search(r'^__license__\s*=\s*"(.*)"', _meta, re.M).group(1)
 _project = re.search(r'^__project__\s*=\s*"(.*)"', _meta, re.M).group(1)
 _version = re.search(r'^__version__\s*=\s*"(.*)"', _meta, re.M).group(1)
@@ -53,7 +53,7 @@ setup(
 
     author='Kirill Klenov',
     author_email='horneds@gmail.com',
-    url='http://github.com/klen/pylama_pylint',
+    url='http://github.com/klen/pylava_pylint',
     classifiers=[
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
@@ -61,12 +61,12 @@ setup(
         'Programming Language :: Python',
     ],
     entry_points={
-        'pylama.linter': [
-            'pylint = pylama_pylint.main:Linter',
+        'pylava.linter': [
+            'pylint = pylava_pylint.main:Linter',
         ],
     },
     packages=find_packages(),
-    package_data={'pylama_pylint': ['pylint.rc']},
+    package_data={'pylava_pylint': ['pylint.rc']},
     install_requires=[
         l for l in _read('requirements.txt').split('\n')
         if l and not l.startswith('#')],

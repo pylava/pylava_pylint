@@ -3,7 +3,7 @@ import logging
 from os import path as op, environ
 
 from astroid import MANAGER
-from pylama.lint import Linter as BaseLinter
+from pylava.lint import Linter as BaseLinter
 from pylint.lint import Run
 from pylint.reporters import BaseReporter
 
@@ -13,7 +13,7 @@ HOME_RCFILE = op.abspath(op.join(environ.get('HOME', ''), '.pylintrc'))
 LAMA_RCFILE = op.abspath(op.join(CURDIR, 'pylint.rc'))
 
 
-logger = logging.getLogger('pylama')
+logger = logging.getLogger('pylava')
 
 
 class Linter(BaseLinter):
@@ -107,4 +107,4 @@ class _Params(object):
     def __repr__(self):
         return "<Pylint %s>" % self
 
-# pylama:ignore=W0403
+# pylava:ignore=W0403
