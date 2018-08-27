@@ -54,7 +54,15 @@ class Linter(BaseLinter):
 
         reporter = Reporter()
 
-        Run([path] + params.to_attrs(), reporter=reporter, do_exit=False)
+        try:
+            Run([path] + params.to_attrs(), reporter=reporter, do_exit=False)
+        except TypeError:
+            # support pylint<2.0
+            # see https://github.com/PyCQA/pylint/commit/4210ef9b8c5d9e7b33ff0542683f18b8031193fa
+            import pylint
+            if pylint.__version__.split('.')[0] != '1':
+                raise
+            Run([path] + params.to_attrs(), reporter=reporter, exit=False)
 
         return reporter.errors
 
