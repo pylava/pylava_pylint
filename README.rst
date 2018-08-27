@@ -5,69 +5,78 @@ Pylava_pylint is a community maintained fork of `Pylama_pylint
 
 pylava_pylint -- Support Pylint_ in Pylava_.
 
-.. image:: http://img.shields.io/travis/klen/pylama_pylint.svg?style=flat-square
-    :target: http://travis-ci.org/klen/pylama_pylint
+.. image:: https://travis-ci.com/pyfocus/pylava_pylint.svg?branch=master
+    :target: https://travis-ci.com/pyfocus/pylava_pylint
     :alt: Build Status
 
-.. image:: http://img.shields.io/pypi/v/pylama_pylint.svg?style=flat-square
-    :target: https://crate.io/packages/pylama
+.. image:: https://img.shields.io/pypi/v/pylava_pylint.svg
+    :target: https://pypi.org/project/pylava_pylint/
     :alt: Version
 
 .. contents::
 
 
 Requirements
-=============
-
+------------
 - python >= 2.7
 
 
 Installation
-============
+------------
+Enter the following command to install Pylava_pylint. ::
 
-**Pylama_pylint** should be installed using pip: ::
+    pip install pylava_pylint
 
-    pip install pylama-pylint
+With Python 3, you may need to enter the following command instead. ::
+
+    pip3 install pylava_pylint
 
 
 Usage
-=====
-::
+-----
+Here are examples of a few commands that shows how Pylava_pylint may be
+used with Pylava. ::
 
-    pylama -l pylint,pep8
+    pylava -l pylint
+    pylava -l pylint,pycodestyle,pydocstyle
 
-See pylama docs for configure pylint with pylama.
 
-
-Bug tracker
-===========
-
-If you have any suggestions, bug reports or
-annoyances please report them to the issue tracker
-at https://github.com/klen/pylama_pylint/issues
+Support
+-------
+To report bugs, suggest improvements, or ask questions, please create a
+new issue at http://github.com/pyfocus/pylava_pylint/issues.
 
 
 Contributing
-============
-
-Development of starter happens at github: https://github.com/klen/pylama_pylint
+------------
+Development of Pylava happens at the ``master`` branch of
+https://github.com/pyfocus/pylava_pyfocus.
 
 
 Contributors
-============
+------------
+See AUTHORS_.
 
-* klen_ (horneds@gmail.com)
-
-* Serg Baburin (https://github.com/gmist)
+.. _AUTHORS: https://github.com/pyfocus/pylava_pylint/blob/master/AUTHORS.rst
 
 
 License
-=======
+-------
+This is free software. You are permitted to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of it, under the
+terms of the MIT License. See LICENSE.rst_ for the complete license.
 
-Licensed under a `MIT License`_.
+This software is provided WITHOUT ANY WARRANTY; without even the implied
+warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
+LICENSE.rst_ for the complete disclaimer.
 
+.. _LICENSE.rst: https://github.com/pyfocus/pylava/blob/master/LICENSE.rst
+
+The original LICENSE file with the BSD-3-Clause license text is archived
+in the `pylama-archive
+<https://github.com/pyfocus/pylava_pylint/tree/master/pylama-archive>`_
+directory.
 
 .. _MIT license: https://github.com/pyfocus/pylava-pylint/blob/master/LICENSE.rst
-.. _klen: http://klen.github.io
-.. _Pylint: http://pylint.org
-.. _Pylama: http://pylama.readthedocs.com
+.. _Pylint: https://www.pylint.org/
+.. _Pylava: https://github.com/pyfocus/pylava
