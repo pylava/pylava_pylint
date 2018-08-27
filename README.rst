@@ -1,7 +1,9 @@
-Pylama_pylint
+Pylava_pylint
 #############
+Pylava_pylint is a community maintained fork of `Pylama_pylint
+<https://github.com/klen/pylama_pylint>`_.
 
-pylama-pylint -- Support Pylint_ in Pylama_.
+pylava_pylint -- Support Pylint_ in Pylava_.
 
 .. image:: http://img.shields.io/travis/klen/pylama_pylint.svg?style=flat-square
     :target: http://travis-ci.org/klen/pylama_pylint
