@@ -54,7 +54,7 @@ class Linter(BaseLinter):
 
         reporter = Reporter()
 
-        Run([path] + params.to_attrs(), reporter=reporter, exit=False)
+        Run([path] + params.to_attrs(), reporter=reporter, do_exit=False)
 
         return reporter.errors
 
