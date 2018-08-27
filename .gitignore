@@ -12,3 +12,5 @@
 /libs
 /todo.txt
 __pycache__
+*.sw?
+/venv

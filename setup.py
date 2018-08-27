@@ -51,9 +51,9 @@ setup(
     long_description=_read('README.rst'),
     platforms=('Any'),
 
-    author='Kirill Klenov',
-    author_email='horneds@gmail.com',
-    url='http://github.com/klen/pylava_pylint',
+    maintainer='Susam Pal',
+    maintainer_email='susam@susam.in',
+    url='http://github.com/pyfocus/pylava_pylint',
     classifiers=[
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',

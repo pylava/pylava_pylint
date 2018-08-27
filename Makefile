@@ -1,14 +1,7 @@
-VENV=$(shell echo "$${VDIR:-'.env'}")
 MODULE=pylava_pylint
 SPHINXBUILD=sphinx-build
 ALLSPHINXOPTS= -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 BUILDDIR=_build
-
-all: $(VENV)
-
-$(VENV): requirements.txt
-	@[ -d $(VENV) ] || virtualenv --no-site-packages $(VENV)
-	@$(VENV)/bin/pip install -r requirements.txt
 
 .PHONY: help
 # target: help - Display callable targets
@@ -19,6 +12,7 @@ help:
 # target: clean - Display callable targets
 clean:
 	@rm -rf build dist docs/_build
+	@rm -rf .tox pylava.egg-info .pytest_cache
 	@find $(CURDIR) -name "*.orig" -delete
 	@find $(CURDIR) -name "*.pyc" -delete
 
@@ -27,43 +21,43 @@ clean:
 # ==============
 
 .PHONY: release
-VERSION?=minor
 # target: release - Bump version
 release:
 	@pip install bumpversion
 	@bumpversion $(VERSION)
 	@git checkout master
-	@git merge develop
-	@git checkout develop
-	@git push --all
+	@git push
 	@git push --tags
-
-.PHONY: minor
-minor: release
-
-.PHONY: patch
-patch:
-	make release VERSION=patch
 
 .PHONY: major
 major:
 	make release VERSION=major
 
+.PHONY: minor
+minor:
+	make release VERSION=minor
+
+.PHONY: patch
+patch:
+	make release VERSION=patch
+
 # ===============
 #  Build package
 # ===============
 
-.PHONY: register
-# target: register - Register module on PyPi
-register:
-	@python setup.py register
-
 .PHONY: upload
-# target: upload - Upload module on PyPi
-upload:
-	@pip install wheel
-	@python setup.py sdist upload || echo 'Already uploaded'
-	@python setup.py bdist_wheel upload || echo 'Already uploaded'
+# target: upload - Upload module on PyPI
+upload: clean
+	@pip install twine wheel
+	@python setup.py sdist bdist_wheel
+	@twine upload dist/* || true
+
+.PHONY: test-upload
+# target: test-upload - Upload module on Test PyPI
+test-upload: clean
+	@pip install twine wheel
+	@python setup.py sdist bdist_wheel
+	@twine upload --repository-url https://test.pypi.org/legacy/ dist/* || true
 
 # =============
 #  Development
@@ -71,8 +65,8 @@ upload:
 
 .PHONY: t
 # target: t - Runs tests
-t: clean $(VENV)
-	@$(VENV)/bin/python setup.py test
+t: clean
+	python setup.py test
 
 .PHONY: audit
 # target: audit - Audit code
