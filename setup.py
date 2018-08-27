@@ -56,7 +56,7 @@ setup(
     url='http://github.com/klen/pylava_pylint',
     classifiers=[
         'Intended Audience :: Developers',
-        'License :: OSI Approved :: BSD License',
+        'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
     ],

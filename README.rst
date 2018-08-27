@@ -64,10 +64,10 @@ Contributors
 License
 =======
 
-Licensed under a `BSD license`_.
+Licensed under a `MIT License`_.
 
 
-.. _BSD license: http://www.linfo.org/bsdlicense.html
+.. _MIT license: https://github.com/pyfocus/pylava-pylint/blob/master/LICENSE.rst
 .. _klen: http://klen.github.io
 .. _Pylint: http://pylint.org
 .. _Pylama: http://pylama.readthedocs.com
