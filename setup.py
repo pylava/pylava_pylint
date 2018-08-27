@@ -47,7 +47,7 @@ setup(
     name=_project,
     version=_version,
     license=_license,
-    description=_read('DESCRIPTION'),
+    description=_read('DESCRIPTION').strip(),
     long_description=_read('README.rst'),
     platforms=('Any'),
 
