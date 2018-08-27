@@ -50,7 +50,7 @@ new issue at http://github.com/pyfocus/pylava_pylint/issues.
 Contributing
 ------------
 Development of Pylava happens at the ``master`` branch of
-https://github.com/pyfocus/pylava_pyfocus.
+https://github.com/pyfocus/pylava_pylint.
 
 
 Contributors
