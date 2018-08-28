@@ -1,23 +1,25 @@
 language: python
 
 python:
-    - "2.7"
+  - "2.7"
+  - "3.4"
+  - "3.5"
+  - "3.6"
 
-env:
-    - TOXENV=py27
-    - TOXENV=cov
+matrix:
+  include:
+    - python: "3.7"
+      dist: xenial
+      sudo: required
+    - python: "2.7"
+      env: TOXENV=cov
+      after_script: pip install --quiet coveralls && coveralls
 
 branches:
-    only:
-        - master
-        - develop
+  only:
+    - master
+    - develop
 
-install: pip install --quiet tox
+install: pip install tox tox-travis
 
 script: tox
-
-after_script:
-    - if [ $TOXENV == "cov" ]; then
-        pip install --quiet coveralls;
-        coveralls;
-      fi
