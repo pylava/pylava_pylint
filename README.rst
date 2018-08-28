@@ -9,6 +9,10 @@ pylava_pylint -- Support Pylint_ in Pylava_.
     :target: https://travis-ci.com/pyfocus/pylava_pylint
     :alt: Build Status
 
+.. image:: https://coveralls.io/repos/github/pyfocus/pylava_pylint/badge.svg?branch=master
+    :target: https://coveralls.io/github/pyfocus/pylava_pylint?branch=master
+    :alt: Coveralls
+
 .. image:: https://img.shields.io/pypi/v/pylava_pylint.svg
     :target: https://pypi.org/project/pylava_pylint/
     :alt: Version
