@@ -29,11 +29,11 @@ Installation
 ------------
 Enter the following command to install Pylava_pylint. ::
 
-    pip install pylava_pylint
+    pip install pylava-pylint
 
 With Python 3, you may need to enter the following command instead. ::
 
-    pip3 install pylava_pylint
+    pip3 install pylava-pylint
 
 
 Usage
