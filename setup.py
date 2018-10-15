@@ -53,7 +53,7 @@ setup(
 
     maintainer='Susam Pal',
     maintainer_email='susam@susam.in',
-    url='http://github.com/pyfocus/pylava_pylint',
+    url='http://github.com/pylava/pylava_pylint',
     classifiers=[
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',

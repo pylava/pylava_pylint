@@ -5,12 +5,12 @@ Pylava_pylint is a community maintained fork of `Pylama_pylint
 
 pylava_pylint -- Support Pylint_ in Pylava_.
 
-.. image:: https://travis-ci.com/pyfocus/pylava_pylint.svg?branch=master
-    :target: https://travis-ci.com/pyfocus/pylava_pylint
+.. image:: https://travis-ci.com/pylava/pylava_pylint.svg?branch=master
+    :target: https://travis-ci.com/pylava/pylava_pylint
     :alt: Build Status
 
-.. image:: https://coveralls.io/repos/github/pyfocus/pylava_pylint/badge.svg?branch=master
-    :target: https://coveralls.io/github/pyfocus/pylava_pylint?branch=master
+.. image:: https://coveralls.io/repos/github/pylava/pylava_pylint/badge.svg?branch=master
+    :target: https://coveralls.io/github/pylava/pylava_pylint?branch=master
     :alt: Coveralls
 
 .. image:: https://img.shields.io/pypi/v/pylava_pylint.svg
@@ -48,20 +48,20 @@ used with Pylava. ::
 Support
 -------
 To report bugs, suggest improvements, or ask questions, please create a
-new issue at http://github.com/pyfocus/pylava_pylint/issues.
+new issue at http://github.com/pylava/pylava_pylint/issues.
 
 
 Contributing
 ------------
 Development of Pylava happens at the ``master`` branch of
-https://github.com/pyfocus/pylava_pylint.
+https://github.com/pylava/pylava_pylint.
 
 
 Contributors
 ------------
 See AUTHORS_.
 
-.. _AUTHORS: https://github.com/pyfocus/pylava_pylint/blob/master/AUTHORS.rst
+.. _AUTHORS: https://github.com/pylava/pylava_pylint/blob/master/AUTHORS.rst
 
 
 License
@@ -74,13 +74,13 @@ This software is provided WITHOUT ANY WARRANTY; without even the implied
 warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
 LICENSE.rst_ for the complete disclaimer.
 
-.. _LICENSE.rst: https://github.com/pyfocus/pylava/blob/master/LICENSE.rst
+.. _LICENSE.rst: https://github.com/pylava/pylava/blob/master/LICENSE.rst
 
 The original LICENSE file with the BSD-3-Clause license text is archived
 in the `pylama-archive
-<https://github.com/pyfocus/pylava_pylint/tree/master/pylama-archive>`_
+<https://github.com/pylava/pylava_pylint/tree/master/pylama-archive>`_
 directory.
 
-.. _MIT license: https://github.com/pyfocus/pylava-pylint/blob/master/LICENSE.rst
+.. _MIT license: https://github.com/pylava/pylava-pylint/blob/master/LICENSE.rst
 .. _Pylint: https://www.pylint.org/
-.. _Pylava: https://github.com/pyfocus/pylava
+.. _Pylava: https://github.com/pylava/pylava
