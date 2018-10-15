@@ -4,7 +4,7 @@
 # ==================
 
 
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 __project__ = "pylava_pylint"
 __author__ = "Pylava Developers"
 __license__ = "MIT"
